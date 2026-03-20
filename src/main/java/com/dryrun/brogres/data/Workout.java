@@ -18,6 +18,5 @@ public class Workout  extends Auditable {
     @EqualsAndHashCode.Include
     private Long id;
 
-    private Duration duration;
 
 }

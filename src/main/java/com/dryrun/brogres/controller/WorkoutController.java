@@ -1,21 +1,22 @@
 package com.dryrun.brogres.controller;
 
 import com.dryrun.brogres.data.Workout;
+import com.dryrun.brogres.data.WorkoutSubmitRequestDto;
 import com.dryrun.brogres.model.ExcerciseEnum;
 import com.dryrun.brogres.service.WorkoutService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/workouts")
+@RequestMapping("/workout")
 @RequiredArgsConstructor
 public class WorkoutController {
 
     private final WorkoutService workoutService;
 
     @PostMapping
-    public Workout createWorkout() {
-        return workoutService.createWorkout();
+    public Workout createWorkout(@RequestBody WorkoutSubmitRequestDto request) {
+        return workoutService.createWorkout(request);
     }
 
     // Nowy endpoint: dodaje pojedyncze ćwiczenie do istniejącego Workout
