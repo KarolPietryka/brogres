@@ -3,7 +3,6 @@ package com.dryrun.brogres.service;
 import com.dryrun.brogres.data.WorkoutSet;
 import com.dryrun.brogres.data.Workout;
 import com.dryrun.brogres.data.WorkoutSubmitRequestDto;
-import com.dryrun.brogres.model.ExcerciseEnum;
 import com.dryrun.brogres.repo.WorkoutSetRepository;
 import com.dryrun.brogres.repo.WorkoutRepository;
 import org.junit.jupiter.api.Test;
@@ -51,16 +50,16 @@ class WorkoutServiceTest {
          {
            "bodyPart": [
              {
-               "bodyPartName": "CHEST",
+               "bodyPartName": "chest",
                "exercises": [
-                 { "name": "OVERHEAD_BB", "weight": 60.0, "reps": 8 },
-                 { "name": "OVERHEAD_BB", "weight": 65.0, "reps": 6 }
+                 { "name": "Bench Press", "weight": 60.0, "reps": 8 },
+                 { "name": "Bench Press", "weight": 65.0, "reps": 6 }
                ]
              },
              {
-               "bodyPartName": "BACK",
+               "bodyPartName": "back",
                "exercises": [
-                 { "name": "OVERHEAD_BB", "weight": null, "reps": 10 }
+                 { "name": "Pull-ups", "weight": null, "reps": 10 }
                ]
              }
            ]
@@ -70,12 +69,12 @@ class WorkoutServiceTest {
         LocalDate today = LocalDate.now();
 
         WorkoutSubmitRequestDto request = new WorkoutSubmitRequestDto(List.of(
-                new WorkoutSubmitRequestDto.WorkoutBodyPartDto("CHEST", List.of(
-                        new WorkoutSubmitRequestDto.WorkoutExerciseDto(ExcerciseEnum.OVERHEAD_BB, new BigDecimal("60.0"), 8),
-                        new WorkoutSubmitRequestDto.WorkoutExerciseDto(ExcerciseEnum.OVERHEAD_BB, new BigDecimal("65.0"), 6)
+                new WorkoutSubmitRequestDto.WorkoutBodyPartDto("chest", List.of(
+                        new WorkoutSubmitRequestDto.WorkoutExerciseDto("Bench Press", new BigDecimal("60.0"), 8),
+                        new WorkoutSubmitRequestDto.WorkoutExerciseDto("Bench Press", new BigDecimal("65.0"), 6)
                 )),
-                new WorkoutSubmitRequestDto.WorkoutBodyPartDto("BACK", List.of(
-                        new WorkoutSubmitRequestDto.WorkoutExerciseDto(ExcerciseEnum.OVERHEAD_BB, null, 10)
+                new WorkoutSubmitRequestDto.WorkoutBodyPartDto("back", List.of(
+                        new WorkoutSubmitRequestDto.WorkoutExerciseDto("Pull-ups", null, 10)
                 ))
         ));
 
@@ -105,17 +104,17 @@ class WorkoutServiceTest {
         assertThat(savedWorkoutSets).hasSize(3);
         assertThat(savedWorkoutSets).allSatisfy(s -> {
             assertThat(s.getWorkout()).isSameAs(savedWorkout);
-            assertThat(s.getExercise()).isNotNull();
+            assertThat(s.getExercise()).isNotBlank();
             assertThat(s.getRepetitions()).isPositive();
         });
 
-        assertThat(savedWorkoutSets.get(0).getExercise()).isEqualTo(ExcerciseEnum.OVERHEAD_BB);
+        assertThat(savedWorkoutSets.get(0).getExercise()).isEqualTo("Bench Press");
         assertThat(savedWorkoutSets.get(0).getRepetitions()).isEqualTo(8);
 
-        assertThat(savedWorkoutSets.get(1).getExercise()).isEqualTo(ExcerciseEnum.OVERHEAD_BB);
+        assertThat(savedWorkoutSets.get(1).getExercise()).isEqualTo("Bench Press");
         assertThat(savedWorkoutSets.get(1).getRepetitions()).isEqualTo(6);
 
-        assertThat(savedWorkoutSets.get(2).getExercise()).isEqualTo(ExcerciseEnum.OVERHEAD_BB);
+        assertThat(savedWorkoutSets.get(2).getExercise()).isEqualTo("Pull-ups");
         assertThat(savedWorkoutSets.get(2).getRepetitions()).isEqualTo(10);
 
         assertThat(result).isSameAs(savedWorkout);
@@ -128,8 +127,8 @@ class WorkoutServiceTest {
         LocalDate today = LocalDate.now();
 
         WorkoutSubmitRequestDto request = new WorkoutSubmitRequestDto(List.of(
-                new WorkoutSubmitRequestDto.WorkoutBodyPartDto("CHEST", List.of(
-                        new WorkoutSubmitRequestDto.WorkoutExerciseDto(ExcerciseEnum.OVERHEAD_BB, new BigDecimal("60.0"), 8)
+                new WorkoutSubmitRequestDto.WorkoutBodyPartDto("chest", List.of(
+                        new WorkoutSubmitRequestDto.WorkoutExerciseDto("Bench Press", new BigDecimal("60.0"), 8)
                 ))
         ));
 

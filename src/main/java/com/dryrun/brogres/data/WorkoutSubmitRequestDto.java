@@ -1,6 +1,5 @@
 package com.dryrun.brogres.data;
 
-import com.dryrun.brogres.model.ExcerciseEnum;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
@@ -25,7 +24,7 @@ public record WorkoutSubmitRequestDto(
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record WorkoutExerciseDto(
-            @NotNull ExcerciseEnum name,
+            @NotBlank String name,
             BigDecimal weight,
             @NotNull @Min(1) Integer reps
     ) {

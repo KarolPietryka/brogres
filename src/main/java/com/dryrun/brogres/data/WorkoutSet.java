@@ -1,6 +1,5 @@
 package com.dryrun.brogres.data;
 
-import com.dryrun.brogres.model.ExcerciseEnum;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -18,9 +17,8 @@ public class WorkoutSet {
     @EqualsAndHashCode.Include
     private Long id;
 
-    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private ExcerciseEnum exercise;
+    private String exercise;
 
     @Column(nullable = false)
     private int repetitions;
