@@ -7,10 +7,11 @@ import lombok.EqualsAndHashCode;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 @Entity
+@Table(name = "workout_set")
 @Data
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @EntityListeners(AuditingEntityListener.class)
-public class Set {
+public class WorkoutSet {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

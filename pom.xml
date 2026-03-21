@@ -35,6 +35,12 @@
 			<artifactId>spring-boot-starter-validation</artifactId>
 		</dependency>
 
+		<dependency>
+			<groupId>com.h2database</groupId>
+			<artifactId>h2</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+
 		<!-- DB driver (jeśli używasz Postgresa) -->
 		<dependency>
 			<groupId>org.postgresql</groupId>

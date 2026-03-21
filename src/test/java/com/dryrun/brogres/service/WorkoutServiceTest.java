@@ -1,10 +1,10 @@
 package com.dryrun.brogres.service;
 
-import com.dryrun.brogres.data.Set;
+import com.dryrun.brogres.data.WorkoutSet;
 import com.dryrun.brogres.data.Workout;
 import com.dryrun.brogres.data.WorkoutSubmitRequestDto;
 import com.dryrun.brogres.model.ExcerciseEnum;
-import com.dryrun.brogres.repo.SetRepository;
+import com.dryrun.brogres.repo.WorkoutSetRepository;
 import com.dryrun.brogres.repo.WorkoutRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,7 +32,7 @@ class WorkoutServiceTest {
     WorkoutRepository workoutRepository;
 
     @Mock
-    SetRepository setRepository;
+    WorkoutSetRepository workoutSetRepository;
 
     @InjectMocks
     WorkoutService workoutService;
@@ -41,7 +41,7 @@ class WorkoutServiceTest {
     ArgumentCaptor<Workout> workoutCaptor;
 
     @Captor
-    ArgumentCaptor<List<Set>> setsCaptor;
+    ArgumentCaptor<List<WorkoutSet>> setsCaptor;
 
     @Test
     void createWorkout_whenDtoProvided_savesWorkoutAndSetsWithExpectedValues() {
@@ -99,28 +99,28 @@ class WorkoutServiceTest {
         assertThat(savedWorkout.getWorkoutDate()).isEqualTo(today);
         assertThat(savedWorkout.getId()).isEqualTo(123L);
 
-        verify(setRepository).saveAll(setsCaptor.capture());
-        List<Set> savedSets = setsCaptor.getValue();
+        verify(workoutSetRepository).saveAll(setsCaptor.capture());
+        List<WorkoutSet> savedWorkoutSets = setsCaptor.getValue();
 
-        assertThat(savedSets).hasSize(3);
-        assertThat(savedSets).allSatisfy(s -> {
+        assertThat(savedWorkoutSets).hasSize(3);
+        assertThat(savedWorkoutSets).allSatisfy(s -> {
             assertThat(s.getWorkout()).isSameAs(savedWorkout);
             assertThat(s.getExercise()).isNotNull();
             assertThat(s.getRepetitions()).isPositive();
         });
 
-        assertThat(savedSets.get(0).getExercise()).isEqualTo(ExcerciseEnum.OVERHEAD_BB);
-        assertThat(savedSets.get(0).getRepetitions()).isEqualTo(8);
+        assertThat(savedWorkoutSets.get(0).getExercise()).isEqualTo(ExcerciseEnum.OVERHEAD_BB);
+        assertThat(savedWorkoutSets.get(0).getRepetitions()).isEqualTo(8);
 
-        assertThat(savedSets.get(1).getExercise()).isEqualTo(ExcerciseEnum.OVERHEAD_BB);
-        assertThat(savedSets.get(1).getRepetitions()).isEqualTo(6);
+        assertThat(savedWorkoutSets.get(1).getExercise()).isEqualTo(ExcerciseEnum.OVERHEAD_BB);
+        assertThat(savedWorkoutSets.get(1).getRepetitions()).isEqualTo(6);
 
-        assertThat(savedSets.get(2).getExercise()).isEqualTo(ExcerciseEnum.OVERHEAD_BB);
-        assertThat(savedSets.get(2).getRepetitions()).isEqualTo(10);
+        assertThat(savedWorkoutSets.get(2).getExercise()).isEqualTo(ExcerciseEnum.OVERHEAD_BB);
+        assertThat(savedWorkoutSets.get(2).getRepetitions()).isEqualTo(10);
 
         assertThat(result).isSameAs(savedWorkout);
 
-        verifyNoMoreInteractions(workoutRepository, setRepository, workoutFactory);
+        verifyNoMoreInteractions(workoutRepository, workoutSetRepository, workoutFactory);
     }
 
     @Test
@@ -143,7 +143,7 @@ class WorkoutServiceTest {
 
         verifyNoInteractions(workoutFactory);
         verify(workoutRepository, never()).save(any(Workout.class));
-        verifyNoInteractions(setRepository);
+        verifyNoInteractions(workoutSetRepository);
 
         verifyNoMoreInteractions(workoutRepository);
     }

@@ -1,11 +1,9 @@
 package com.dryrun.brogres.service;
 
-import com.dryrun.brogres.data.Set;
+import com.dryrun.brogres.data.WorkoutSet;
 import com.dryrun.brogres.data.Workout;
 import com.dryrun.brogres.data.WorkoutSubmitRequestDto;
-import com.dryrun.brogres.repo.SetRepository;
-import com.dryrun.brogres.repo.WorkoutRepository;
-import lombok.RequiredArgsConstructor;
+import com.dryrun.brogres.repo.WorkoutSetRepository;
 import com.dryrun.brogres.repo.WorkoutRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -21,7 +19,7 @@ public class WorkoutService {
 
     private final WorkoutFactory workoutFactory;
     private final WorkoutRepository workoutRepository;
-    private final SetRepository setRepository;
+    private final WorkoutSetRepository workoutSetRepository;
 
     @Transactional
     public Workout createWorkout(WorkoutSubmitRequestDto request) {
@@ -35,18 +33,18 @@ public class WorkoutService {
         workout.setWorkoutDate(today);
         workout = workoutRepository.save(workout);
 
-        List<Set> setsToSave = new ArrayList<>();
+        List<WorkoutSet> setsToSave = new ArrayList<>();
         for (WorkoutSubmitRequestDto.WorkoutBodyPartDto bodyPartDto : request.bodyPart()) {
             for (WorkoutSubmitRequestDto.WorkoutExerciseDto exerciseDto : bodyPartDto.exercises()) {
-                Set set = new Set();
-                set.setWorkout(workout);
-                set.setExercise(exerciseDto.name());
-                set.setRepetitions(exerciseDto.reps());
-                setsToSave.add(set);
+                WorkoutSet workoutSet = new WorkoutSet();
+                workoutSet.setWorkout(workout);
+                workoutSet.setExercise(exerciseDto.name());
+                workoutSet.setRepetitions(exerciseDto.reps());
+                setsToSave.add(workoutSet);
             }
         }
 
-        setRepository.saveAll(setsToSave);
+        workoutSetRepository.saveAll(setsToSave);
         return workout;
     }
 
