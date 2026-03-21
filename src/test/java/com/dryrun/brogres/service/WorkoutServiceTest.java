@@ -16,9 +16,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -81,7 +81,7 @@ class WorkoutServiceTest {
         Workout factoryWorkout = new Workout();
         when(workoutFactory.createWorkout()).thenReturn(factoryWorkout);
 
-        when(workoutRepository.existsByWorkoutDate(today)).thenReturn(false);
+        when(workoutRepository.findByWorkoutDate(today)).thenReturn(Optional.empty());
 
         when(workoutRepository.save(any(Workout.class))).thenAnswer(invocation -> {
             Workout w = invocation.getArgument(0);
@@ -91,7 +91,7 @@ class WorkoutServiceTest {
 
         Workout result = workoutService.createWorkout(request);
 
-        verify(workoutRepository).existsByWorkoutDate(today);
+        verify(workoutRepository).findByWorkoutDate(today);
 
         verify(workoutRepository).save(workoutCaptor.capture());
         Workout savedWorkout = workoutCaptor.getValue();
@@ -129,7 +129,7 @@ class WorkoutServiceTest {
     }
 
     @Test
-    void createWorkout_whenWorkoutForTodayAlreadyExists_doesNotSaveAnything() {
+    void createWorkout_whenWorkoutForTodayAlreadyExists_appendsSetsToExistingWorkout() {
         LocalDate today = LocalDate.now();
 
         WorkoutSubmitRequestDto request = new WorkoutSubmitRequestDto(List.of(
@@ -138,18 +138,29 @@ class WorkoutServiceTest {
                 ))
         ));
 
-        when(workoutRepository.existsByWorkoutDate(today)).thenReturn(true);
+        Workout existing = new Workout();
+        existing.setId(99L);
+        existing.setWorkoutDate(today);
 
-        assertThatThrownBy(() -> workoutService.createWorkout(request))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessage("Workout for current day already exists");
+        when(workoutRepository.findByWorkoutDate(today)).thenReturn(Optional.of(existing));
 
-        verify(workoutRepository).existsByWorkoutDate(today);
+        Workout result = workoutService.createWorkout(request);
 
+        verify(workoutRepository).findByWorkoutDate(today);
         verifyNoInteractions(workoutFactory);
         verify(workoutRepository, never()).save(any(Workout.class));
-        verifyNoInteractions(workoutSetRepository);
 
-        verifyNoMoreInteractions(workoutRepository);
+        verify(workoutSetRepository).saveAll(setsCaptor.capture());
+        List<WorkoutSet> saved = setsCaptor.getValue();
+        assertThat(saved).hasSize(1);
+        WorkoutSet persisted = saved.get(0);
+        assertThat(persisted.getWorkout()).isSameAs(existing);
+        assertThat(persisted.getBodyPart()).isEqualTo("chest");
+        assertThat(persisted.getExercise()).isEqualTo("Bench Press");
+        assertThat(persisted.getWeight()).isEqualByComparingTo(new BigDecimal("60.0"));
+        assertThat(persisted.getRepetitions()).isEqualTo(8);
+        assertThat(result).isSameAs(existing);
+
+        verifyNoMoreInteractions(workoutRepository, workoutSetRepository, workoutFactory);
     }
 }

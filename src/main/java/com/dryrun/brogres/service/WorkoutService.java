@@ -16,6 +16,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -29,13 +30,15 @@ public class WorkoutService {
     public Workout createWorkout(WorkoutSubmitRequestDto request) {
         LocalDate today = LocalDate.now();
 
-        if (workoutRepository.existsByWorkoutDate(today)) {
-            throw new IllegalStateException("Workout for current day already exists");
+        Optional<Workout> existing = workoutRepository.findByWorkoutDate(today);
+        Workout workout;
+        if (existing.isPresent()) {
+            workout = existing.get();
+        } else {
+            workout = workoutFactory.createWorkout();
+            workout.setWorkoutDate(today);
+            workout = workoutRepository.save(workout);
         }
-
-        Workout workout = workoutFactory.createWorkout();
-        workout.setWorkoutDate(today);
-        workout = workoutRepository.save(workout);
 
         List<WorkoutSet> setsToSave = new ArrayList<>();
         for (WorkoutSubmitRequestDto.WorkoutBodyPartDto bodyPartDto : request.bodyPart()) {

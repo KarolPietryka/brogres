@@ -1,8 +1,10 @@
 package com.dryrun.brogres.data;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDate;
@@ -23,6 +25,8 @@ public class Workout extends Auditable {
     @Column(nullable = false)
     private LocalDate workoutDate;
 
+    @JsonIgnore
+    @ToString.Exclude
     @OneToMany(mappedBy = "workout", fetch = FetchType.LAZY)
     private List<WorkoutSet> sets = new ArrayList<>();
 }
