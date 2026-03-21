@@ -109,12 +109,18 @@ class WorkoutServiceTest {
         });
 
         assertThat(savedWorkoutSets.get(0).getExercise()).isEqualTo("Bench Press");
+        assertThat(savedWorkoutSets.get(0).getBodyPart()).isEqualTo("chest");
+        assertThat(savedWorkoutSets.get(0).getWeight()).isEqualByComparingTo(new BigDecimal("60.0"));
         assertThat(savedWorkoutSets.get(0).getRepetitions()).isEqualTo(8);
 
         assertThat(savedWorkoutSets.get(1).getExercise()).isEqualTo("Bench Press");
+        assertThat(savedWorkoutSets.get(1).getBodyPart()).isEqualTo("chest");
+        assertThat(savedWorkoutSets.get(1).getWeight()).isEqualByComparingTo(new BigDecimal("65.0"));
         assertThat(savedWorkoutSets.get(1).getRepetitions()).isEqualTo(6);
 
         assertThat(savedWorkoutSets.get(2).getExercise()).isEqualTo("Pull-ups");
+        assertThat(savedWorkoutSets.get(2).getBodyPart()).isEqualTo("back");
+        assertThat(savedWorkoutSets.get(2).getWeight()).isNull();
         assertThat(savedWorkoutSets.get(2).getRepetitions()).isEqualTo(10);
 
         assertThat(result).isSameAs(savedWorkout);

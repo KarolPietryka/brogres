@@ -6,7 +6,8 @@ import lombok.EqualsAndHashCode;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper = false)
 @Entity
@@ -22,5 +23,6 @@ public class Workout extends Auditable {
     @Column(nullable = false)
     private LocalDate workoutDate;
 
-    
+    @OneToMany(mappedBy = "workout", fetch = FetchType.LAZY)
+    private List<WorkoutSet> sets = new ArrayList<>();
 }

@@ -1,11 +1,16 @@
 package com.dryrun.brogres.controller;
 
 import com.dryrun.brogres.data.Workout;
+import com.dryrun.brogres.data.WorkoutResponseDtos.WorkoutSummaryDto;
 import com.dryrun.brogres.data.WorkoutSubmitRequestDto;
+import com.dryrun.brogres.service.ExerciseCatalogService;
 import com.dryrun.brogres.service.WorkoutService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/workout")
@@ -13,6 +18,17 @@ import org.springframework.web.bind.annotation.*;
 public class WorkoutController {
 
     private final WorkoutService workoutService;
+    private final ExerciseCatalogService exerciseCatalogService;
+
+    @GetMapping("/exercise-catalog")
+    public Map<String, List<String>> exerciseCatalog() {
+        return exerciseCatalogService.exercisesByDisplayGroup();
+    }
+
+    @GetMapping
+    public List<WorkoutSummaryDto> listWorkouts() {
+        return workoutService.listWorkouts();
+    }
 
     @PostMapping
     public Workout createWorkout(@Valid @RequestBody WorkoutSubmitRequestDto request) {

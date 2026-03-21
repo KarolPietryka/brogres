@@ -5,6 +5,8 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
+import java.math.BigDecimal;
+
 @Entity
 @Table(name = "workout_set")
 @Data
@@ -22,6 +24,12 @@ public class WorkoutSet {
 
     @Column(nullable = false)
     private int repetitions;
+
+    @Column(nullable = false)
+    private String bodyPart;
+
+    @Column
+    private BigDecimal weight;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "workout_id", nullable = false)

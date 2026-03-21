@@ -1,16 +1,20 @@
 package com.dryrun.brogres.service;
 
-import com.dryrun.brogres.data.WorkoutSet;
 import com.dryrun.brogres.data.Workout;
+import com.dryrun.brogres.data.WorkoutResponseDtos.WorkoutBodyPartViewDto;
+import com.dryrun.brogres.data.WorkoutResponseDtos.WorkoutExerciseViewDto;
+import com.dryrun.brogres.data.WorkoutResponseDtos.WorkoutSummaryDto;
+import com.dryrun.brogres.data.WorkoutSet;
 import com.dryrun.brogres.data.WorkoutSubmitRequestDto;
-import com.dryrun.brogres.repo.WorkoutSetRepository;
 import com.dryrun.brogres.repo.WorkoutRepository;
+import com.dryrun.brogres.repo.WorkoutSetRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -38,7 +42,9 @@ public class WorkoutService {
             for (WorkoutSubmitRequestDto.WorkoutExerciseDto exerciseDto : bodyPartDto.exercises()) {
                 WorkoutSet workoutSet = new WorkoutSet();
                 workoutSet.setWorkout(workout);
+                workoutSet.setBodyPart(bodyPartDto.bodyPartName());
                 workoutSet.setExercise(exerciseDto.name());
+                workoutSet.setWeight(exerciseDto.weight());
                 workoutSet.setRepetitions(exerciseDto.reps());
                 setsToSave.add(workoutSet);
             }
@@ -48,5 +54,34 @@ public class WorkoutService {
         return workout;
     }
 
-    // ... existing code ...
+    @Transactional(readOnly = true)
+    public List<WorkoutSummaryDto> listWorkouts() {
+        return workoutRepository.findAllByOrderByWorkoutDateDesc().stream()
+                .map(this::toSummary)
+                .toList();
+    }
+
+    private WorkoutSummaryDto toSummary(Workout workout) {
+        List<WorkoutSet> sets = new ArrayList<>(workout.getSets());
+        sets.sort(Comparator.comparing(WorkoutSet::getId));
+        if (sets.isEmpty()) {
+            return new WorkoutSummaryDto(workout.getId(), workout.getWorkoutDate(), List.of());
+        }
+        List<WorkoutBodyPartViewDto> bodyParts = new ArrayList<>();
+        String currentPart = null;
+        List<WorkoutExerciseViewDto> currentExercises = null;
+        for (WorkoutSet set : sets) {
+            String part = set.getBodyPart() != null ? set.getBodyPart() : "";
+            if (currentPart == null || !currentPart.equals(part)) {
+                if (currentPart != null) {
+                    bodyParts.add(new WorkoutBodyPartViewDto(currentPart, currentExercises));
+                }
+                currentPart = part;
+                currentExercises = new ArrayList<>();
+            }
+            currentExercises.add(new WorkoutExerciseViewDto(set.getExercise(), set.getWeight(), set.getRepetitions()));
+        }
+        bodyParts.add(new WorkoutBodyPartViewDto(currentPart, currentExercises));
+        return new WorkoutSummaryDto(workout.getId(), workout.getWorkoutDate(), bodyParts);
+    }
 }
