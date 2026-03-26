@@ -18,10 +18,10 @@ public final class WorkoutResponseDtos {
     public record WorkoutExerciseViewDto(String name, BigDecimal weight, int reps) {
     }
 
-    /**
-     * {@code GET /workout/prefill} — same shape as one element of {@code GET /workout} when present,
-     * so the frontend can reuse mapping to modal draft lines.
-     */
-    public record PrefillWorkoutResponseDto(WorkoutSummaryDto lastWorkout) {
+    /** GET /workout/prefill — same shape as {@code bodyPart} in {@link WorkoutSubmitRequestDto}. */
+    public record WorkoutPrefillDto(List<WorkoutBodyPartViewDto> bodyPart) {
+        public static WorkoutPrefillDto empty() {
+            return new WorkoutPrefillDto(List.of());
+        }
     }
 }

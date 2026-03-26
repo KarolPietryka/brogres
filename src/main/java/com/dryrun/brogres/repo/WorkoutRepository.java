@@ -12,6 +12,11 @@ public interface WorkoutRepository extends JpaRepository<Workout, Long> {
 
     Optional<Workout> findByWorkoutDate(LocalDate workoutDate);
 
+    boolean existsByWorkoutDate(LocalDate workoutDate);
+
+    @EntityGraph(attributePaths = "sets")
+    Optional<Workout> findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(LocalDate date);
+
     @EntityGraph(attributePaths = "sets")
     List<Workout> findAllByOrderByWorkoutDateDesc();
 }

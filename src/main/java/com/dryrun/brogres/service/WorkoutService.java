@@ -1,9 +1,9 @@
 package com.dryrun.brogres.service;
 
 import com.dryrun.brogres.data.Workout;
-import com.dryrun.brogres.data.WorkoutResponseDtos.PrefillWorkoutResponseDto;
 import com.dryrun.brogres.data.WorkoutResponseDtos.WorkoutBodyPartViewDto;
 import com.dryrun.brogres.data.WorkoutResponseDtos.WorkoutExerciseViewDto;
+import com.dryrun.brogres.data.WorkoutResponseDtos.WorkoutPrefillDto;
 import com.dryrun.brogres.data.WorkoutResponseDtos.WorkoutSummaryDto;
 import com.dryrun.brogres.data.WorkoutSet;
 import com.dryrun.brogres.data.WorkoutSubmitRequestDto;
@@ -22,11 +22,6 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 public class WorkoutService {
-
-    /** Latest calendar day first; same-day duplicates tie-break by higher id (newer row). */
-    private static final Comparator<Workout> BY_SESSION_RECENCY =
-            Comparator.comparing(Workout::getWorkoutDate).reversed()
-                    .thenComparing(Comparator.comparing(Workout::getId).reversed());
 
     private final WorkoutFactory workoutFactory;
     private final WorkoutRepository workoutRepository;
@@ -64,32 +59,32 @@ public class WorkoutService {
     }
 
     @Transactional(readOnly = true)
+    public WorkoutPrefillDto prefillWorkout() {
+        LocalDate today = LocalDate.now();
+        if (workoutRepository.existsByWorkoutDate(today)) {
+            return WorkoutPrefillDto.empty();
+        }
+        return workoutRepository.findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(today)
+                .map(w -> new WorkoutPrefillDto(toBodyParts(w)))
+                .orElseGet(WorkoutPrefillDto::empty);
+    }
+
+    @Transactional(readOnly = true)
     public List<WorkoutSummaryDto> listWorkouts() {
         return workoutRepository.findAllByOrderByWorkoutDateDesc().stream()
                 .map(this::toSummary)
                 .toList();
     }
 
-    /**
-     * Baseline session for prefill: the most recent {@link Workout} that actually has at least one set row,
-     * including <strong>every</strong> {@link WorkoutSet} for that workout (same projection as list endpoint).
-     * Skips empty workout headers (e.g. placeholder day with no exercises yet). If nothing qualifies, {@code lastWorkout} is null.
-     */
-    @Transactional(readOnly = true)
-    public PrefillWorkoutResponseDto prefillFromLastWorkout() {
-        List<Workout> workouts = workoutRepository.findAllByOrderByWorkoutDateDesc();
-        return workouts.stream()
-                .filter(w -> w.getSets() != null && !w.getSets().isEmpty())
-                .max(BY_SESSION_RECENCY)
-                .map(w -> new PrefillWorkoutResponseDto(toSummary(w)))
-                .orElseGet(() -> new PrefillWorkoutResponseDto(null));
+    private WorkoutSummaryDto toSummary(Workout workout) {
+        return new WorkoutSummaryDto(workout.getId(), workout.getWorkoutDate(), toBodyParts(workout));
     }
 
-    private WorkoutSummaryDto toSummary(Workout workout) {
+    private List<WorkoutBodyPartViewDto> toBodyParts(Workout workout) {
         List<WorkoutSet> sets = new ArrayList<>(workout.getSets());
         sets.sort(Comparator.comparing(WorkoutSet::getId));
         if (sets.isEmpty()) {
-            return new WorkoutSummaryDto(workout.getId(), workout.getWorkoutDate(), List.of());
+            return List.of();
         }
         List<WorkoutBodyPartViewDto> bodyParts = new ArrayList<>();
         String currentPart = null;
@@ -106,6 +101,6 @@ public class WorkoutService {
             currentExercises.add(new WorkoutExerciseViewDto(set.getExercise(), set.getWeight(), set.getRepetitions()));
         }
         bodyParts.add(new WorkoutBodyPartViewDto(currentPart, currentExercises));
-        return new WorkoutSummaryDto(workout.getId(), workout.getWorkoutDate(), bodyParts);
+        return bodyParts;
     }
 }
