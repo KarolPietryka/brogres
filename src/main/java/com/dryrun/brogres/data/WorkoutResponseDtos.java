@@ -17,4 +17,11 @@ public final class WorkoutResponseDtos {
 
     public record WorkoutExerciseViewDto(String name, BigDecimal weight, int reps) {
     }
+
+    /**
+     * {@code GET /workout/prefill} — same shape as one element of {@code GET /workout} when present,
+     * so the frontend can reuse mapping to modal draft lines.
+     */
+    public record PrefillWorkoutResponseDto(WorkoutSummaryDto lastWorkout) {
+    }
 }

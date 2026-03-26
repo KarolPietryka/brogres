@@ -1,6 +1,7 @@
 package com.dryrun.brogres.service;
 
 import com.dryrun.brogres.data.Workout;
+import com.dryrun.brogres.data.WorkoutResponseDtos.PrefillWorkoutResponseDto;
 import com.dryrun.brogres.data.WorkoutResponseDtos.WorkoutBodyPartViewDto;
 import com.dryrun.brogres.data.WorkoutResponseDtos.WorkoutExerciseViewDto;
 import com.dryrun.brogres.data.WorkoutResponseDtos.WorkoutSummaryDto;
@@ -21,6 +22,11 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 public class WorkoutService {
+
+    /** Latest calendar day first; same-day duplicates tie-break by higher id (newer row). */
+    private static final Comparator<Workout> BY_SESSION_RECENCY =
+            Comparator.comparing(Workout::getWorkoutDate).reversed()
+                    .thenComparing(Comparator.comparing(Workout::getId).reversed());
 
     private final WorkoutFactory workoutFactory;
     private final WorkoutRepository workoutRepository;
@@ -62,6 +68,21 @@ public class WorkoutService {
         return workoutRepository.findAllByOrderByWorkoutDateDesc().stream()
                 .map(this::toSummary)
                 .toList();
+    }
+
+    /**
+     * Baseline session for prefill: the most recent {@link Workout} that actually has at least one set row,
+     * including <strong>every</strong> {@link WorkoutSet} for that workout (same projection as list endpoint).
+     * Skips empty workout headers (e.g. placeholder day with no exercises yet). If nothing qualifies, {@code lastWorkout} is null.
+     */
+    @Transactional(readOnly = true)
+    public PrefillWorkoutResponseDto prefillFromLastWorkout() {
+        List<Workout> workouts = workoutRepository.findAllByOrderByWorkoutDateDesc();
+        return workouts.stream()
+                .filter(w -> w.getSets() != null && !w.getSets().isEmpty())
+                .max(BY_SESSION_RECENCY)
+                .map(w -> new PrefillWorkoutResponseDto(toSummary(w)))
+                .orElseGet(() -> new PrefillWorkoutResponseDto(null));
     }
 
     private WorkoutSummaryDto toSummary(Workout workout) {

@@ -1,6 +1,7 @@
 package com.dryrun.brogres.controller;
 
 import com.dryrun.brogres.data.Workout;
+import com.dryrun.brogres.data.WorkoutResponseDtos.PrefillWorkoutResponseDto;
 import com.dryrun.brogres.data.WorkoutResponseDtos.WorkoutSummaryDto;
 import com.dryrun.brogres.data.WorkoutSubmitRequestDto;
 import com.dryrun.brogres.service.ExerciseCatalogService;
@@ -33,6 +34,14 @@ public class WorkoutController {
     @PostMapping
     public Workout createWorkout(@Valid @RequestBody WorkoutSubmitRequestDto request) {
         return workoutService.createWorkout(request);
+    }
+
+    /**
+     * Baseline for the next session: last saved workout day, same JSON shape as one item from {@code GET /workout}.
+     */
+    @GetMapping("/prefill")
+    public PrefillWorkoutResponseDto prefillWorkout() {
+        return workoutService.prefillFromLastWorkout();
     }
 
     // Nowy endpoint: dodaje pojedyncze ćwiczenie do istniejącego Workout
