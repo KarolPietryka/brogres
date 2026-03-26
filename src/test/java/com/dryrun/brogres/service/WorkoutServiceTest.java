@@ -152,6 +152,10 @@ class WorkoutServiceTest {
         assertThat(savedWorkoutSets.get(2).getWeight()).isNull();
         assertThat(savedWorkoutSets.get(2).getRepetitions()).isEqualTo(10);
 
+        assertThat(savedWorkoutSets.get(0).getLineOrder()).isZero();
+        assertThat(savedWorkoutSets.get(1).getLineOrder()).isEqualTo(1);
+        assertThat(savedWorkoutSets.get(2).getLineOrder()).isEqualTo(2);
+
         // API returns the same workout instance that was saved.
         assertThat(result).isSameAs(savedWorkout);
 
@@ -179,11 +183,13 @@ class WorkoutServiceTest {
 
         // A session for today already exists: only append sets, no new Workout row.
         when(workoutRepository.findByWorkoutDate(today)).thenReturn(Optional.of(existing));
+        when(workoutSetRepository.findMaxLineOrderIndex(99L)).thenReturn(-1);
 
         Workout result = workoutService.createWorkout(request);
 
         // Service still looks up today's workout to decide between create vs append.
         verify(workoutRepository).findByWorkoutDate(today);
+        verify(workoutSetRepository).findMaxLineOrderIndex(99L);
         // Existing row means the factory must not run.
         verifyNoInteractions(workoutFactory);
         // Workout entity is not inserted again; only new sets are added.
@@ -205,6 +211,7 @@ class WorkoutServiceTest {
         assertThat(persisted.getWeight()).isEqualByComparingTo(new BigDecimal("60.0"));
         // Reps match the single exercise line in the request.
         assertThat(persisted.getRepetitions()).isEqualTo(8);
+        assertThat(persisted.getLineOrder()).isZero();
         // Caller gets back the existing workout reference unchanged.
         assertThat(result).isSameAs(existing);
 
@@ -239,7 +246,7 @@ class WorkoutServiceTest {
 
     /**
      * Prefill when there is no workout today but history exists: map the latest workout with {@code workoutDate} strictly
-     * before today into {@code bodyPart} groups, preserving set order (by id) within the session.
+     * before today into {@code bodyPart} groups, preserving set order by {@code lineOrder}.
      */
     @Test
     void prefillWorkout_whenNoWorkoutTodayButEarlierWorkoutExists_mapsSetsToBodyPartStructure() {
@@ -257,6 +264,7 @@ class WorkoutServiceTest {
         s1.setExercise("Bench Press");
         s1.setWeight(new BigDecimal("60.0"));
         s1.setRepetitions(8);
+        s1.setLineOrder(0);
 
         WorkoutSet s2 = new WorkoutSet();
         s2.setId(11L);
@@ -265,6 +273,7 @@ class WorkoutServiceTest {
         s2.setExercise("Bench Press");
         s2.setWeight(new BigDecimal("65.0"));
         s2.setRepetitions(6);
+        s2.setLineOrder(1);
 
         WorkoutSet s3 = new WorkoutSet();
         s3.setId(12L);
@@ -273,8 +282,9 @@ class WorkoutServiceTest {
         s3.setExercise("Pull-ups");
         s3.setWeight(null);
         s3.setRepetitions(10);
+        s3.setLineOrder(2);
 
-        previous.getSets().addAll(List.of(s1, s2, s3));
+        previous.getSets().addAll(List.of(s3, s1, s2));
 
         // Nothing for today: service will look up the latest session before today.
         when(workoutRepository.existsByWorkoutDate(today)).thenReturn(false);
@@ -291,15 +301,15 @@ class WorkoutServiceTest {
         assertThat(result.bodyPart().get(0).bodyPartName()).isEqualTo("chest");
         // Two bench rows preserved in WorkoutSet id order (60/8 then 65/6).
         assertThat(result.bodyPart().get(0).exercises()).containsExactly(
-                new WorkoutExerciseViewDto("Bench Press", new BigDecimal("60.0"), 8),
-                new WorkoutExerciseViewDto("Bench Press", new BigDecimal("65.0"), 6)
+                new WorkoutExerciseViewDto("Bench Press", 0, new BigDecimal("60.0"), 8),
+                new WorkoutExerciseViewDto("Bench Press", 1, new BigDecimal("65.0"), 6)
         );
 
         // Second group switches to back after the chest block ends.
         assertThat(result.bodyPart().get(1).bodyPartName()).isEqualTo("back");
         // Single pull-up line with null weight.
         assertThat(result.bodyPart().get(1).exercises()).containsExactly(
-                new WorkoutExerciseViewDto("Pull-ups", null, 10)
+                new WorkoutExerciseViewDto("Pull-ups", 2, null, 10)
         );
 
         // No row for today, so we check exists then load the latest session before today.

@@ -31,6 +31,10 @@ public class WorkoutSet {
     @Column
     private BigDecimal weight;
 
+    /** Global line index within the workout (0, 1, …), set from request order when saving. */
+    @Column(name = "line_order", nullable = false)
+    private int lineOrder;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "workout_id", nullable = false)
     private Workout workout;

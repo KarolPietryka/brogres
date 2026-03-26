@@ -15,7 +15,7 @@ public final class WorkoutResponseDtos {
     public record WorkoutBodyPartViewDto(String bodyPartName, List<WorkoutExerciseViewDto> exercises) {
     }
 
-    public record WorkoutExerciseViewDto(String name, BigDecimal weight, int reps) {
+    public record WorkoutExerciseViewDto(String name, int orderId, BigDecimal weight, int reps) {
     }
 
     /** GET /workout/prefill — same shape as {@code bodyPart} in {@link WorkoutSubmitRequestDto}. */

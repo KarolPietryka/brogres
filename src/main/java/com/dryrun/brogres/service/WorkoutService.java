@@ -33,12 +33,15 @@ public class WorkoutService {
 
         Optional<Workout> existing = workoutRepository.findByWorkoutDate(today);
         Workout workout;
+        int nextLineOrder;
         if (existing.isPresent()) {
             workout = existing.get();
+            nextLineOrder = workoutSetRepository.findMaxLineOrderIndex(workout.getId()) + 1;
         } else {
             workout = workoutFactory.createWorkout();
             workout.setWorkoutDate(today);
             workout = workoutRepository.save(workout);
+            nextLineOrder = 0;
         }
 
         List<WorkoutSet> setsToSave = new ArrayList<>();
@@ -50,6 +53,7 @@ public class WorkoutService {
                 workoutSet.setExercise(exerciseDto.name());
                 workoutSet.setWeight(exerciseDto.weight());
                 workoutSet.setRepetitions(exerciseDto.reps());
+                workoutSet.setLineOrder(nextLineOrder++);
                 setsToSave.add(workoutSet);
             }
         }
@@ -82,7 +86,7 @@ public class WorkoutService {
 
     private List<WorkoutBodyPartViewDto> toBodyParts(Workout workout) {
         List<WorkoutSet> sets = new ArrayList<>(workout.getSets());
-        sets.sort(Comparator.comparing(WorkoutSet::getId));
+        sets.sort(Comparator.comparingInt(WorkoutSet::getLineOrder).thenComparing(WorkoutSet::getId));
         if (sets.isEmpty()) {
             return List.of();
         }
@@ -98,7 +102,8 @@ public class WorkoutService {
                 currentPart = part;
                 currentExercises = new ArrayList<>();
             }
-            currentExercises.add(new WorkoutExerciseViewDto(set.getExercise(), set.getWeight(), set.getRepetitions()));
+            currentExercises.add(new WorkoutExerciseViewDto(
+                    set.getExercise(), set.getLineOrder(), set.getWeight(), set.getRepetitions()));
         }
         bodyParts.add(new WorkoutBodyPartViewDto(currentPart, currentExercises));
         return bodyParts;
