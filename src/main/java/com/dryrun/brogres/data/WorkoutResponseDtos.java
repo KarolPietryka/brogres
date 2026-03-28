@@ -19,7 +19,8 @@ public final class WorkoutResponseDtos {
     public record WorkoutBodyPartViewDto(String bodyPartName, List<WorkoutExerciseViewDto> exercises) {
     }
 
-    public record WorkoutExerciseViewDto(String name, int orderId, BigDecimal weight, int reps) {
+    /** {@code planned}: wiersz planu na dziś vs wykonana seria (styling na FE). */
+    public record WorkoutExerciseViewDto(String name, int orderId, BigDecimal weight, int reps, boolean planned) {
     }
 
     /** GET /workout/prefill — same shape as {@code bodyPart} in {@link WorkoutSubmitRequestDto}. */

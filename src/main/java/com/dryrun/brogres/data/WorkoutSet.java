@@ -35,6 +35,12 @@ public class WorkoutSet {
     @Column(name = "line_order", nullable = false)
     private int lineOrder;
 
+    /**
+     * {@code true} = wiersz planu na dziś (snapshot z ostatniej sesji); {@code false} = wykonana seria z POST-a.
+     */
+    @Column(name = "planned", nullable = false)
+    private boolean planned = false;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "workout_id", nullable = false)
     private Workout workout;

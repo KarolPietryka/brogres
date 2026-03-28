@@ -3,7 +3,6 @@ package com.dryrun.brogres.data;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
-import org.hibernate.annotations.BatchSize;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -30,11 +29,4 @@ public class Workout extends Auditable {
     @ToString.Exclude
     @OneToMany(mappedBy = "workout", fetch = FetchType.LAZY)
     private List<WorkoutSet> sets = new ArrayList<>();
-
-    /** Mirror of the last completed session, created with the first save of {@link #workoutDate}. */
-    @JsonIgnore
-    @ToString.Exclude
-    @BatchSize(size = 32)
-    @OneToMany(mappedBy = "workout", fetch = FetchType.LAZY)
-    private List<PlanWorkoutSet> planWorkoutSets = new ArrayList<>();
 }

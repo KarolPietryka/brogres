@@ -5,10 +5,7 @@ import com.dryrun.brogres.data.WorkoutResponseDtos.WorkoutExerciseViewDto;
 import com.dryrun.brogres.data.WorkoutResponseDtos.WorkoutPrefillDto;
 import com.dryrun.brogres.data.WorkoutSet;
 import com.dryrun.brogres.data.WorkoutSubmitRequestDto;
-import com.dryrun.brogres.data.PlanWorkoutSet;
-import com.dryrun.brogres.mapper.PlanWorkoutSetMapper;
 import com.dryrun.brogres.mapper.WorkoutSummaryMapper;
-import com.dryrun.brogres.repo.PlanWorkoutSetRepository;
 import com.dryrun.brogres.repo.WorkoutSetRepository;
 import com.dryrun.brogres.repo.WorkoutRepository;
 import org.junit.jupiter.api.Test;
@@ -36,7 +33,6 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class WorkoutServiceTest {
 
-    // Mock: zależności WorkoutService — stubujemy odpowiedzi repozytoriów i fabryki.
     @Mock
     WorkoutFactory workoutFactory;
 
@@ -46,33 +42,17 @@ class WorkoutServiceTest {
     @Mock
     WorkoutSetRepository workoutSetRepository;
 
-    @Mock
-    PlanWorkoutSetRepository planWorkoutSetRepository;
-
-    /**
-     * Spy: prawdziwy wygenerowany MapStruct mapper — w testach tworzenia treningu wykonuje realne mapowanie
-     * {@link PlanWorkoutSetMapper#fromWorkoutSets}; można też weryfikować interakcje, jeśli dodasz verify na spy.
-     */
-    @Spy
-    private PlanWorkoutSetMapper planWorkoutSetMapper = Mappers.getMapper(PlanWorkoutSetMapper.class);
-
     @Spy
     private WorkoutSummaryMapper workoutSummaryMapper = Mappers.getMapper(WorkoutSummaryMapper.class);
 
     @InjectMocks
     WorkoutService workoutService;
 
-    /** Captor: przechwytuje argument {@code save(Workout)} — asercje na dacie i id. */
     @Captor
     ArgumentCaptor<Workout> workoutCaptor;
 
-    /** Captor: przechwytuje listę z {@code saveAll} dla {@link WorkoutSet}. */
     @Captor
     ArgumentCaptor<List<WorkoutSet>> setsCaptor;
-
-    /** Captor: przechwytuje listę z {@code saveAll} dla {@link PlanWorkoutSet}. */
-    @Captor
-    ArgumentCaptor<List<PlanWorkoutSet>> planWorkoutSetsCaptor;
 
     /**
      * First workout of the day: creates a new {@link Workout}, persists it, saves all {@link WorkoutSet} rows from the DTO
@@ -80,28 +60,6 @@ class WorkoutServiceTest {
      */
     @Test
     void createWorkout_whenDtoProvided_savesWorkoutAndSetsWithExpectedValues() {
-        /*
-         JSON matching the DTO under test:
-
-         {
-           "bodyPart": [
-             {
-               "bodyPartName": "chest",
-               "exercises": [
-                 { "name": "Bench Press", "weight": 60.0, "reps": 8 },
-                 { "name": "Bench Press", "weight": 65.0, "reps": 6 }
-               ]
-             },
-             {
-               "bodyPartName": "back",
-               "exercises": [
-                 { "name": "Pull-ups", "weight": null, "reps": 10 }
-               ]
-             }
-           ]
-         }
-        */
-
         LocalDate today = LocalDate.now();
 
         WorkoutSubmitRequestDto request = new WorkoutSubmitRequestDto(List.of(
@@ -115,88 +73,66 @@ class WorkoutServiceTest {
         ));
 
         Workout factoryWorkout = new Workout();
-        // when: pierwszy trening dnia — fabryka zwraca świeży obiekt Workout przed zapisem.
         when(workoutFactory.createWorkout()).thenReturn(factoryWorkout);
-
-        // when: w repozytorium nie ma jeszcze wiersza na dziś → gałąź „nowy Workout”.
         when(workoutRepository.findByWorkoutDate(today)).thenReturn(Optional.empty());
-        // when: brak starszej sesji → kopiowanie planu (plan_workout_set) się nie wykona; stub musi zwrócić pusty Optional.
         when(workoutRepository.findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(today)).thenReturn(Optional.empty());
-
-        // when + thenAnswer: symulacja INSERT — Hibernate nadałby id; ustawiamy stałe 123L i zwracamy ten sam obiekt.
         when(workoutRepository.save(any(Workout.class))).thenAnswer(invocation -> {
             Workout w = invocation.getArgument(0);
             w.setId(123L);
             return w;
         });
+        when(workoutSetRepository.findMaxLineOrderIndex(123L)).thenReturn(-1);
 
         Workout result = workoutService.createWorkout(request);
 
-        // verify: serwis musi najpierw sprawdzić, czy istnieje trening na dziś.
         verify(workoutRepository).findByWorkoutDate(today);
-
-        // verify + captor: dokładnie jeden save Workout; przechwytujemy encję, żeby asercjami potwierdzić datę i id.
         verify(workoutRepository).save(workoutCaptor.capture());
         Workout savedWorkout = workoutCaptor.getValue();
-        // assert: zapisany trening ma datę bieżącego dnia (logika „dzisiaj”).
         assertThat(savedWorkout.getWorkoutDate()).isEqualTo(today);
-        // assert: id ustawione tak jak po zapisie do bazy (mock).
         assertThat(savedWorkout.getId()).isEqualTo(123L);
 
-        // verify + captor: wszystkie serie z DTO idą jednym saveAll — łapiemy listę WorkoutSet do inspekcji pól.
+        verify(workoutSetRepository).findMaxLineOrderIndex(123L);
         verify(workoutSetRepository).saveAll(setsCaptor.capture());
         List<WorkoutSet> savedWorkoutSets = setsCaptor.getValue();
 
-        // assert: trzy linie DTO (2× bench + pull-up) → trzy wiersze WorkoutSet.
         assertThat(savedWorkoutSets).hasSize(3);
-        // assert: każda seria należy do zapisanego workoutu i ma sensowne minimum (nazwa, repy).
         assertThat(savedWorkoutSets).allSatisfy(s -> {
             assertThat(s.getWorkout()).isSameAs(savedWorkout);
             assertThat(s.getExercise()).isNotBlank();
             assertThat(s.getRepetitions()).isPositive();
+            assertThat(s.isPlanned()).isFalse();
         });
 
-        // assert: pierwsza seria — pierwszy wpis chest z DTO (60 kg × 8).
         assertThat(savedWorkoutSets.get(0).getExercise()).isEqualTo("Bench Press");
         assertThat(savedWorkoutSets.get(0).getBodyPart()).isEqualTo("chest");
         assertThat(savedWorkoutSets.get(0).getWeight()).isEqualByComparingTo(new BigDecimal("60.0"));
         assertThat(savedWorkoutSets.get(0).getRepetitions()).isEqualTo(8);
 
-        // assert: druga seria — drugi wpis chest (rampa 65 kg × 6).
         assertThat(savedWorkoutSets.get(1).getExercise()).isEqualTo("Bench Press");
         assertThat(savedWorkoutSets.get(1).getBodyPart()).isEqualTo("chest");
         assertThat(savedWorkoutSets.get(1).getWeight()).isEqualByComparingTo(new BigDecimal("65.0"));
         assertThat(savedWorkoutSets.get(1).getRepetitions()).isEqualTo(6);
 
-        // assert: trzecia seria — back, waga null (CW).
         assertThat(savedWorkoutSets.get(2).getExercise()).isEqualTo("Pull-ups");
         assertThat(savedWorkoutSets.get(2).getBodyPart()).isEqualTo("back");
         assertThat(savedWorkoutSets.get(2).getWeight()).isNull();
         assertThat(savedWorkoutSets.get(2).getRepetitions()).isEqualTo(10);
 
-        // assert: lineOrder globalnie 0,1,2 — zgodnie z kolejnością w żądaniu.
         assertThat(savedWorkoutSets.get(0).getLineOrder()).isZero();
         assertThat(savedWorkoutSets.get(1).getLineOrder()).isEqualTo(1);
         assertThat(savedWorkoutSets.get(2).getLineOrder()).isEqualTo(2);
 
-        // assert: API zwraca referencję do tego samego obiektu Workout co po save (kontrakt serwisu).
         assertThat(result).isSameAs(savedWorkout);
 
-        // verify: przy tworzeniu dnia wywołane jest szukanie „ostatniej sesji przed dziś” (do planu; tu pusto).
         verify(workoutRepository).findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(today);
-        // verify: skoro nie było poprzedniej sesji, repozytorium planu nie zapisywało nic.
-        verifyNoInteractions(planWorkoutSetRepository);
-
-        // verify: żadnych dodatkowych wywołań na mockach poza ścieżką tego scenariusza.
         verifyNoMoreInteractions(workoutRepository, workoutSetRepository, workoutFactory);
     }
 
     /**
-     * First workout of the day with history: after saving today's row, copies the previous session into
-     * {@link PlanWorkoutSet} rows (drawer / prefill snapshot).
+     * First workout of the day with history: copies previous session’s executed sets as {@code planned=true} rows, then saves POST sets with {@code planned=false}.
      */
     @Test
-    void createWorkout_whenNewDayAndPreviousWorkoutExists_copiesPreviousSetsToPlanWorkoutSets() {
+    void createWorkout_whenNewDayAndPreviousWorkoutExists_copiesPreviousExecutedSetsAsPlanned() {
         LocalDate today = LocalDate.now();
         LocalDate yesterday = today.minusDays(1);
 
@@ -207,9 +143,7 @@ class WorkoutServiceTest {
         ));
 
         Workout factoryWorkout = new Workout();
-        // when: nowy dzień — fabryka dostarcza pusty Workout.
         when(workoutFactory.createWorkout()).thenReturn(factoryWorkout);
-        // when: brak treningu na dziś przed zapisem.
         when(workoutRepository.findByWorkoutDate(today)).thenReturn(Optional.empty());
 
         Workout previous = new Workout();
@@ -223,40 +157,39 @@ class WorkoutServiceTest {
         prevSet.setWeight(new BigDecimal("40"));
         prevSet.setRepetitions(12);
         prevSet.setLineOrder(0);
+        prevSet.setPlanned(false);
         previous.getSets().add(prevSet);
 
-        // when: jest „wczorajszy” trening z jedną serią — źródło kopiowania do planu dnia.
         when(workoutRepository.findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(today)).thenReturn(Optional.of(previous));
-
-        // when + thenAnswer: zapis dzisiejszego Workout z id jak z bazy (123L).
         when(workoutRepository.save(any(Workout.class))).thenAnswer(invocation -> {
             Workout w = invocation.getArgument(0);
             w.setId(123L);
             return w;
         });
+        when(workoutSetRepository.findMaxLineOrderIndex(123L)).thenReturn(0);
 
         workoutService.createWorkout(request);
 
-        // verify + captor: mapper skopiował poprzednią sesję do PlanWorkoutSet — łapiemy listę przekazaną do saveAll.
-        verify(planWorkoutSetRepository).saveAll(planWorkoutSetsCaptor.capture());
-        List<PlanWorkoutSet> savedPlan = planWorkoutSetsCaptor.getValue();
-        // assert: jedna seria wczoraj → jeden wiersz planu.
-        assertThat(savedPlan).hasSize(1);
-        // assert: exercise i kolejność pochodzą z WorkoutSet poprzedniego dnia.
-        assertThat(savedPlan.get(0).getExercise()).isEqualTo("Fly");
-        assertThat(savedPlan.get(0).getLineOrder()).isZero();
-        assertThat(savedPlan.get(0).getBodyPart()).isEqualTo("chest");
-        // assert: plan przypięty do dzisiejszego workoutu o id ustawionym przez mock save.
-        assertThat(savedPlan.get(0).getWorkout().getId()).isEqualTo(123L);
+        verify(workoutSetRepository, times(2)).saveAll(setsCaptor.capture());
+        List<List<WorkoutSet>> batches = setsCaptor.getAllValues();
+        assertThat(batches).hasSize(2);
 
-        // verify: serwis musiał pobrać poprzednią sesję do zbudowania planu.
+        List<WorkoutSet> plannedBatch = batches.get(0);
+        assertThat(plannedBatch).hasSize(1);
+        assertThat(plannedBatch.get(0).isPlanned()).isTrue();
+        assertThat(plannedBatch.get(0).getExercise()).isEqualTo("Fly");
+        assertThat(plannedBatch.get(0).getLineOrder()).isZero();
+        assertThat(plannedBatch.get(0).getWorkout().getId()).isEqualTo(123L);
+
+        List<WorkoutSet> executedBatch = batches.get(1);
+        assertThat(executedBatch).hasSize(1);
+        assertThat(executedBatch.get(0).isPlanned()).isFalse();
+        assertThat(executedBatch.get(0).getExercise()).isEqualTo("Bench Press");
+        assertThat(executedBatch.get(0).getLineOrder()).isEqualTo(1);
+
         verify(workoutRepository).findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(today);
     }
 
-    /**
-     * Workout for today already exists: append new sets only—no factory, no second {@code save(Workout)}—and return the
-     * existing workout instance.
-     */
     @Test
     void createWorkout_whenWorkoutForTodayAlreadyExists_appendsSetsToExistingWorkout() {
         LocalDate today = LocalDate.now();
@@ -271,116 +204,87 @@ class WorkoutServiceTest {
         existing.setId(99L);
         existing.setWorkoutDate(today);
 
-        // when: trening na dziś już istnieje (id 99) — dopisujemy serie, nie tworzymy nowego Workout.
         when(workoutRepository.findByWorkoutDate(today)).thenReturn(Optional.of(existing));
-        // when: brak jeszcze serii → max lineOrder = -1, pierwsza nowa seria dostanie indeks 0.
         when(workoutSetRepository.findMaxLineOrderIndex(99L)).thenReturn(-1);
 
         Workout result = workoutService.createWorkout(request);
 
-        // verify: serwis musi odczytać dzisiejszy workout.
         verify(workoutRepository).findByWorkoutDate(today);
-        // verify: musi policzyć następny lineOrder dla istniejącego id treningu.
         verify(workoutSetRepository).findMaxLineOrderIndex(99L);
-        // verify: przy append nie tworzymy nowego Workout — fabryka nie jest używana.
         verifyNoInteractions(workoutFactory);
-        // verify: drugi save(Workout) nie jest wywoływany (tylko dopisywanie setów).
         verify(workoutRepository, never()).save(any(Workout.class));
 
-        // verify + captor: jedna seria z DTO → saveAll z jednym WorkoutSet.
         verify(workoutSetRepository).saveAll(setsCaptor.capture());
         List<WorkoutSet> saved = setsCaptor.getValue();
-        // assert: jedna linia w żądaniu → jeden zapisany WorkoutSet.
         assertThat(saved).hasSize(1);
         WorkoutSet persisted = saved.get(0);
-        // assert: FK wskazuje na istniejący workout tego dnia, nie na nowy obiekt.
         assertThat(persisted.getWorkout()).isSameAs(existing);
-        // assert: bodyPart i pola ćwiczenia zgodne z DTO.
         assertThat(persisted.getBodyPart()).isEqualTo("chest");
         assertThat(persisted.getExercise()).isEqualTo("Bench Press");
         assertThat(persisted.getWeight()).isEqualByComparingTo(new BigDecimal("60.0"));
         assertThat(persisted.getRepetitions()).isEqualTo(8);
         assertThat(persisted.getLineOrder()).isZero();
-        // assert: zwracany Workout to ten sam co w bazie (append).
+        assertThat(persisted.isPlanned()).isFalse();
         assertThat(result).isSameAs(existing);
 
-        // verify: przy append nie tworzymy ani nie aktualizujemy plan_workout_set (plan powstał przy pierwszym POST dnia).
-        verifyNoInteractions(planWorkoutSetRepository);
         verifyNoMoreInteractions(workoutRepository, workoutSetRepository, workoutFactory);
     }
 
-    /**
-     * Prefill when a workout is already stored for today: returns persisted {@link PlanWorkoutSet} snapshot (drawer feed),
-     * not empty — user continues the same session with the same plan reference.
-     */
     @Test
-    void prefillWorkout_whenWorkoutAlreadyExistsForToday_returnsPlanFromPlanWorkoutSets() {
+    void prefillWorkout_whenWorkoutAlreadyExistsForToday_returnsPlannedSetsOnly() {
         LocalDate today = LocalDate.now();
-        // when: jest już trening na dziś → prefill z planu (PlanWorkoutSet), nie z historii „wczoraj”.
         when(workoutRepository.existsByWorkoutDate(today)).thenReturn(true);
 
         Workout todayW = new Workout();
         todayW.setId(5L);
         todayW.setWorkoutDate(today);
-        PlanWorkoutSet pl = new PlanWorkoutSet();
-        pl.setId(1L);
-        pl.setWorkout(todayW);
-        pl.setBodyPart("chest");
-        pl.setExercise("Bench");
-        pl.setWeight(new BigDecimal("50"));
-        pl.setRepetitions(5);
-        pl.setLineOrder(0);
-        todayW.getPlanWorkoutSets().add(pl);
+        WorkoutSet planned = new WorkoutSet();
+        planned.setId(1L);
+        planned.setWorkout(todayW);
+        planned.setBodyPart("chest");
+        planned.setExercise("Bench");
+        planned.setWeight(new BigDecimal("50"));
+        planned.setRepetitions(5);
+        planned.setLineOrder(0);
+        planned.setPlanned(true);
+        todayW.getSets().add(planned);
 
-        // when: repozytorium zwraca dzisiejszy workout z załadowanymi planWorkoutSets (jak @EntityGraph w produkcji).
-        when(workoutRepository.findWithPlanWorkoutSetsByWorkoutDate(today)).thenReturn(Optional.of(todayW));
+        when(workoutRepository.findByWorkoutDate(today)).thenReturn(Optional.of(todayW));
 
         WorkoutPrefillDto result = workoutService.prefillWorkout();
 
-        // assert: jedna grupa partii w odpowiedzi prefill.
         assertThat(result.bodyPart()).hasSize(1);
-        // assert: nazwa grupy i jedna seria zgodna z PlanWorkoutSet (orderId = lineOrder).
         assertThat(result.bodyPart().get(0).bodyPartName()).isEqualTo("chest");
         assertThat(result.bodyPart().get(0).exercises()).containsExactly(
-                new WorkoutExerciseViewDto("Bench", 0, new BigDecimal("50"), 5));
+                new WorkoutExerciseViewDto("Bench", 0, new BigDecimal("50"), 5, true));
 
-        // verify: najpierw sprawdzenie „czy jest dziś”.
         verify(workoutRepository).existsByWorkoutDate(today);
-        // verify: potem załadowanie planu z dzisiejszego workoutu.
-        verify(workoutRepository).findWithPlanWorkoutSetsByWorkoutDate(today);
-        // verify: nie ma ścieżki „ostatni trening przed dziś” (inna gałąź).
+        verify(workoutRepository).findByWorkoutDate(today);
         verify(workoutRepository, never()).findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(any());
-        // verify: prefill tylko czyta — nie zapisuje setów ani planu.
-        verifyNoInteractions(workoutFactory, workoutSetRepository, planWorkoutSetRepository);
+        verifyNoInteractions(workoutFactory, workoutSetRepository);
         verifyNoMoreInteractions(workoutRepository);
     }
 
     @Test
     void prefillWorkout_whenWorkoutExistsForTodayButPlanEmpty_returnsEmptyBodyPart() {
         LocalDate today = LocalDate.now();
-        // when: jest trening dziś, ale bez wierszy planu (np. migracja / brak historii przy utworzeniu).
         when(workoutRepository.existsByWorkoutDate(today)).thenReturn(true);
 
         Workout todayW = new Workout();
         todayW.setId(5L);
         todayW.setWorkoutDate(today);
-        when(workoutRepository.findWithPlanWorkoutSetsByWorkoutDate(today)).thenReturn(Optional.of(todayW));
+        when(workoutRepository.findByWorkoutDate(today)).thenReturn(Optional.of(todayW));
 
         WorkoutPrefillDto result = workoutService.prefillWorkout();
-        // assert: z pustym planem mapowanie daje pustą listę bodyPart.
         assertThat(result.bodyPart()).isEmpty();
 
         verify(workoutRepository).existsByWorkoutDate(today);
-        verify(workoutRepository).findWithPlanWorkoutSetsByWorkoutDate(today);
-        verifyNoInteractions(workoutFactory, workoutSetRepository, planWorkoutSetRepository);
+        verify(workoutRepository).findByWorkoutDate(today);
+        verifyNoInteractions(workoutFactory, workoutSetRepository);
     }
 
-    /**
-     * Prefill when there is no workout today but history exists: map the latest workout with {@code workoutDate} strictly
-     * before today into {@code bodyPart} groups, preserving set order by {@code lineOrder}.
-     */
     @Test
-    void prefillWorkout_whenNoWorkoutTodayButEarlierWorkoutExists_mapsSetsToBodyPartStructure() {
+    void prefillWorkout_whenNoWorkoutTodayButEarlierWorkoutExists_mapsExecutedSetsToBodyPartStructure() {
         LocalDate today = LocalDate.now();
         LocalDate yesterday = today.minusDays(1);
 
@@ -396,6 +300,7 @@ class WorkoutServiceTest {
         s1.setWeight(new BigDecimal("60.0"));
         s1.setRepetitions(8);
         s1.setLineOrder(0);
+        s1.setPlanned(false);
 
         WorkoutSet s2 = new WorkoutSet();
         s2.setId(11L);
@@ -405,6 +310,7 @@ class WorkoutServiceTest {
         s2.setWeight(new BigDecimal("65.0"));
         s2.setRepetitions(6);
         s2.setLineOrder(1);
+        s2.setPlanned(false);
 
         WorkoutSet s3 = new WorkoutSet();
         s3.setId(12L);
@@ -414,57 +320,62 @@ class WorkoutServiceTest {
         s3.setWeight(null);
         s3.setRepetitions(10);
         s3.setLineOrder(2);
+        s3.setPlanned(false);
 
         previous.getSets().addAll(List.of(s3, s1, s2));
 
-        // when: brak treningu na dziś.
         when(workoutRepository.existsByWorkoutDate(today)).thenReturn(false);
-        // when: ostatnia sesja przed dziś (wczoraj) z trzema seriami — kolejność w liście celowo pomieszana względem lineOrder.
         when(workoutRepository.findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(today))
                 .thenReturn(Optional.of(previous));
 
         WorkoutPrefillDto result = workoutService.prefillWorkout();
 
-        // assert: po sortowaniu po lineOrder serwis grupuje do dwóch bodyPart (chest, back).
         assertThat(result.bodyPart()).hasSize(2);
-
-        // assert: pierwsza grupa — chest, dwie serie w kolejności lineOrder 0 i 1 (nie kolejności id w liście).
         assertThat(result.bodyPart().get(0).bodyPartName()).isEqualTo("chest");
         assertThat(result.bodyPart().get(0).exercises()).containsExactly(
-                new WorkoutExerciseViewDto("Bench Press", 0, new BigDecimal("60.0"), 8),
-                new WorkoutExerciseViewDto("Bench Press", 1, new BigDecimal("65.0"), 6)
+                new WorkoutExerciseViewDto("Bench Press", 0, new BigDecimal("60.0"), 8, false),
+                new WorkoutExerciseViewDto("Bench Press", 1, new BigDecimal("65.0"), 6, false)
         );
-
-        // assert: druga grupa — back, jedna seria, waga null.
         assertThat(result.bodyPart().get(1).bodyPartName()).isEqualTo("back");
         assertThat(result.bodyPart().get(1).exercises()).containsExactly(
-                new WorkoutExerciseViewDto("Pull-ups", 2, null, 10)
+                new WorkoutExerciseViewDto("Pull-ups", 2, null, 10, false)
         );
 
-        // verify: exists + findFirst dla „ostatniego przed dziś”.
         verify(workoutRepository).existsByWorkoutDate(today);
         verify(workoutRepository).findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(today);
-        // verify: prefill nie zapisuje nic do fabryki ani repozytoriów setów.
         verifyNoInteractions(workoutFactory, workoutSetRepository);
         verifyNoMoreInteractions(workoutRepository);
     }
 
-    /**
-     * Prefill cold start (or no row older than today): {@code exists} is false and {@code findFirst...LessThan} returns
-     * empty—result is an empty {@code bodyPart} list.
-     */
     @Test
     void prefillWorkout_whenNoWorkoutTodayAndRepositoryFindsNoEarlierWorkout_returnsEmptyBodyPartList() {
         LocalDate today = LocalDate.now();
-        // when: cold start — nie ma treningu na dziś.
         when(workoutRepository.existsByWorkoutDate(today)).thenReturn(false);
-        // when: w bazie nie ma żadnej sesji starszej niż dziś.
         when(workoutRepository.findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(today))
                 .thenReturn(Optional.empty());
 
         WorkoutPrefillDto result = workoutService.prefillWorkout();
+        assertThat(result.bodyPart()).isEmpty();
 
-        // assert: brak źródła do sklonowania → pusty bodyPart.
+        verify(workoutRepository).existsByWorkoutDate(today);
+        verify(workoutRepository).findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(today);
+        verifyNoInteractions(workoutFactory, workoutSetRepository);
+        verifyNoMoreInteractions(workoutRepository);
+    }
+
+    @Test
+    void prefillWorkout_whenEarlierWorkoutHasNoSets_returnsEmptyBodyPartList() {
+        LocalDate today = LocalDate.now();
+
+        Workout shell = new Workout();
+        shell.setId(1L);
+        shell.setWorkoutDate(today.minusDays(3));
+
+        when(workoutRepository.existsByWorkoutDate(today)).thenReturn(false);
+        when(workoutRepository.findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(today))
+                .thenReturn(Optional.of(shell));
+
+        WorkoutPrefillDto result = workoutService.prefillWorkout();
         assertThat(result.bodyPart()).isEmpty();
 
         verify(workoutRepository).existsByWorkoutDate(today);
@@ -474,35 +385,44 @@ class WorkoutServiceTest {
     }
 
     /**
-     * Edge case: {@code findFirst...LessThan(today)} returns a {@link Workout} with an empty {@code sets} collection.
-     * Prefill is built only from sets, so the response is still {@code bodyPart: []}—same as cold start from the FE’s
-     * perspective, but the service did run both repository calls (unlike {@link #prefillWorkout_whenNoWorkoutTodayAndRepositoryFindsNoEarlierWorkout_returnsEmptyBodyPartList}
-     * where the second call returns {@link Optional#empty()}). Covers inconsistent data or a future “empty session” row.
+     * Gdy ostatnia sesja ma tylko wiersze planu ({@code planned=true}), nie klonujemy ich do nowego dnia jako plan.
      */
     @Test
-    void prefillWorkout_whenEarlierWorkoutHasNoSets_returnsEmptyBodyPartList() {
+    void createWorkout_whenNewDayButPreviousHasOnlyPlannedRows_doesNotCopyPlanAsSnapshot() {
         LocalDate today = LocalDate.now();
+        LocalDate yesterday = today.minusDays(1);
 
-        // Workout row exists for a past date, but no child sets (orphan / incomplete session).
-        Workout shell = new Workout();
-        shell.setId(1L);
-        shell.setWorkoutDate(today.minusDays(3));
+        WorkoutSubmitRequestDto request = new WorkoutSubmitRequestDto(List.of(
+                new WorkoutSubmitRequestDto.WorkoutBodyPartDto("chest", List.of(
+                        new WorkoutSubmitRequestDto.WorkoutExerciseDto("X", BigDecimal.ONE, 1)
+                ))
+        ));
 
-        // when: nie ma dziś treningu.
-        when(workoutRepository.existsByWorkoutDate(today)).thenReturn(false);
-        // when: jest „ostatni przed dziś”, ale bez zestawów serii — edge case danych.
-        when(workoutRepository.findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(today))
-                .thenReturn(Optional.of(shell));
+        when(workoutFactory.createWorkout()).thenReturn(new Workout());
+        when(workoutRepository.findByWorkoutDate(today)).thenReturn(Optional.empty());
 
-        WorkoutPrefillDto result = workoutService.prefillWorkout();
+        Workout previous = new Workout();
+        previous.setId(50L);
+        previous.setWorkoutDate(yesterday);
+        WorkoutSet onlyPlanned = new WorkoutSet();
+        onlyPlanned.setWorkout(previous);
+        onlyPlanned.setPlanned(true);
+        onlyPlanned.setBodyPart("chest");
+        onlyPlanned.setExercise("Ghost");
+        onlyPlanned.setRepetitions(1);
+        onlyPlanned.setLineOrder(0);
+        previous.getSets().add(onlyPlanned);
 
-        // assert: puste sets → brak ćwiczeń w bodyPart mimo że findFirst coś zwrócił.
-        assertThat(result.bodyPart()).isEmpty();
+        when(workoutRepository.findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(today)).thenReturn(Optional.of(previous));
+        when(workoutRepository.save(any(Workout.class))).thenAnswer(invocation -> {
+            Workout w = invocation.getArgument(0);
+            w.setId(123L);
+            return w;
+        });
+        when(workoutSetRepository.findMaxLineOrderIndex(123L)).thenReturn(-1);
 
-        // verify: nadal wykonane są oba odczyty (exists + findFirst), jak przy pełnym prefillu.
-        verify(workoutRepository).existsByWorkoutDate(today);
-        verify(workoutRepository).findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(today);
-        verifyNoInteractions(workoutFactory, workoutSetRepository);
-        verifyNoMoreInteractions(workoutRepository);
+        workoutService.createWorkout(request);
+
+        verify(workoutSetRepository, times(1)).saveAll(anyList());
     }
 }

@@ -5,9 +5,7 @@ import com.dryrun.brogres.data.WorkoutResponseDtos.WorkoutPrefillDto;
 import com.dryrun.brogres.data.WorkoutResponseDtos.WorkoutSummaryDto;
 import com.dryrun.brogres.data.WorkoutSubmitRequestDto;
 import com.dryrun.brogres.data.WorkoutSet;
-import com.dryrun.brogres.mapper.PlanWorkoutSetMapper;
 import com.dryrun.brogres.mapper.WorkoutSummaryMapper;
-import com.dryrun.brogres.repo.PlanWorkoutSetRepository;
 import com.dryrun.brogres.repo.WorkoutRepository;
 import com.dryrun.brogres.repo.WorkoutSetRepository;
 import lombok.RequiredArgsConstructor;
@@ -27,8 +25,6 @@ public class WorkoutService {
     private final WorkoutFactory workoutFactory;
     private final WorkoutRepository workoutRepository;
     private final WorkoutSetRepository workoutSetRepository;
-    private final PlanWorkoutSetRepository planWorkoutSetRepository;
-    private final PlanWorkoutSetMapper planWorkoutSetMapper;
     private final WorkoutSummaryMapper workoutSummaryMapper;
 
     @Transactional
@@ -45,8 +41,8 @@ public class WorkoutService {
             workout = workoutFactory.createWorkout();
             workout.setWorkoutDate(today);
             workout = workoutRepository.save(workout);
-            copyPreviousSessionToPlanWorkoutSets(workout);
-            nextLineOrder = 0;
+            copyPreviousSessionAsPlannedSets(workout);
+            nextLineOrder = workoutSetRepository.findMaxLineOrderIndex(workout.getId()) + 1;
         }
 
         List<WorkoutSet> setsToSave = new ArrayList<>();
@@ -59,6 +55,7 @@ public class WorkoutService {
                 workoutSet.setWeight(exerciseDto.weight());
                 workoutSet.setRepetitions(exerciseDto.reps());
                 workoutSet.setLineOrder(nextLineOrder++);
+                workoutSet.setPlanned(false);
                 setsToSave.add(workoutSet);
             }
         }
@@ -68,31 +65,45 @@ public class WorkoutService {
     }
 
     /**
-     * First line saved for {@code workout}'s day: snapshot the last workout before that day (drawer / prefill source of truth).
+     * Pierwszy zapis dnia: snapshot ostatniej sesji (tylko wykonane serie) jako {@link WorkoutSet} z {@code planned=true}.
      */
-    private void copyPreviousSessionToPlanWorkoutSets(Workout workout) {
+    private void copyPreviousSessionAsPlannedSets(Workout workout) {
         Optional<Workout> previous = workoutRepository.findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(workout.getWorkoutDate());
         if (previous.isEmpty()) {
             return;
         }
-        List<WorkoutSet> sets = new ArrayList<>(previous.get().getSets());
-        if (sets.isEmpty()) {
+        List<WorkoutSet> executed = previous.get().getSets().stream()
+                .filter(s -> !s.isPlanned())
+                .sorted(Comparator.comparingInt(WorkoutSet::getLineOrder).thenComparing(WorkoutSet::getId))
+                .toList();
+        if (executed.isEmpty()) {
             return;
         }
-        sets.sort(Comparator.comparingInt(WorkoutSet::getLineOrder).thenComparing(WorkoutSet::getId));
-        planWorkoutSetRepository.saveAll(planWorkoutSetMapper.fromWorkoutSets(sets, workout));
+        List<WorkoutSet> plannedRows = new ArrayList<>();
+        for (WorkoutSet src : executed) {
+            WorkoutSet row = new WorkoutSet();
+            row.setWorkout(workout);
+            row.setBodyPart(src.getBodyPart());
+            row.setExercise(src.getExercise());
+            row.setWeight(src.getWeight());
+            row.setRepetitions(src.getRepetitions());
+            row.setLineOrder(src.getLineOrder());
+            row.setPlanned(true);
+            plannedRows.add(row);
+        }
+        workoutSetRepository.saveAll(plannedRows);
     }
 
     @Transactional(readOnly = true)
     public WorkoutPrefillDto prefillWorkout() {
         LocalDate today = LocalDate.now();
         if (workoutRepository.existsByWorkoutDate(today)) {
-            return workoutRepository.findWithPlanWorkoutSetsByWorkoutDate(today)
-                    .map(w -> new WorkoutPrefillDto(workoutSummaryMapper.toBodyPartsFromPlanWorkoutSets(w.getPlanWorkoutSets())))
+            return workoutRepository.findByWorkoutDate(today)
+                    .map(w -> new WorkoutPrefillDto(workoutSummaryMapper.toExercisePlan(w)))
                     .orElseGet(WorkoutPrefillDto::empty);
         }
         return workoutRepository.findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(today)
-                .map(w -> new WorkoutPrefillDto(workoutSummaryMapper.toBodyParts(w)))
+                .map(w -> new WorkoutPrefillDto(workoutSummaryMapper.toPrefillFromPreviousSession(w)))
                 .orElseGet(WorkoutPrefillDto::empty);
     }
 
