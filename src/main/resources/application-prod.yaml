@@ -6,11 +6,16 @@ spring:
     password: ${SPRING_DATASOURCE_PASSWORD}
 
   jpa:
+    defer-datasource-initialization: false
     hibernate:
       ddl-auto: update
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  sql:
+    init:
+      mode: never
 
   h2:
     console:

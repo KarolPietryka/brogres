@@ -17,6 +17,10 @@ public interface WorkoutRepository extends JpaRepository<Workout, Long> {
     @EntityGraph(attributePaths = "sets")
     Optional<Workout> findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(LocalDate date);
 
+    /** Fetches {@code sets} in one query; {@code planWorkoutSets} is lazy + batch-loaded (see {@code Workout}). */
     @EntityGraph(attributePaths = "sets")
     List<Workout> findAllByOrderByWorkoutDateDesc();
+
+    @EntityGraph(attributePaths = "planWorkoutSets")
+    Optional<Workout> findWithPlanWorkoutSetsByWorkoutDate(LocalDate workoutDate);
 }

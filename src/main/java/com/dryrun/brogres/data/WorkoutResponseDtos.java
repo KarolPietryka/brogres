@@ -9,7 +9,11 @@ public final class WorkoutResponseDtos {
     private WorkoutResponseDtos() {
     }
 
-    public record WorkoutSummaryDto(long id, LocalDate workoutDate, List<WorkoutBodyPartViewDto> bodyPart) {
+    public record WorkoutSummaryDto(
+            long id,
+            LocalDate workoutDate,
+            List<WorkoutBodyPartViewDto> bodyPart,
+            List<WorkoutBodyPartViewDto> exercisePlan) {
     }
 
     public record WorkoutBodyPartViewDto(String bodyPartName, List<WorkoutExerciseViewDto> exercises) {
