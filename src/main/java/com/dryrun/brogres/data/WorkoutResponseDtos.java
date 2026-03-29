@@ -19,11 +19,15 @@ public final class WorkoutResponseDtos {
     public record WorkoutBodyPartViewDto(String bodyPartName, List<WorkoutExerciseViewDto> exercises) {
     }
 
-    /** {@code planned}: wiersz planu na dziś vs wykonana seria (styling na FE). */
-    public record WorkoutExerciseViewDto(String name, int orderId, BigDecimal weight, int reps, boolean planned) {
+    /** {@link WorkoutSetStatus} for FE styling (PLANNED / NEXT / DONE). */
+    public record WorkoutExerciseViewDto(String name, int orderId, BigDecimal weight, int reps, WorkoutSetStatus status) {
     }
 
-    /** GET /workout/prefill — same shape as {@code bodyPart} in {@link WorkoutSubmitRequestDto}. */
+    /**
+     * GET /workout/prefill — same shape as {@code bodyPart} in {@link WorkoutSubmitRequestDto}.
+     * When today’s workout exists: service maps persisted {@code DONE} rows to {@code PLANNED} in the DTO, then picks one {@code NEXT}.
+     * When it does not: synthetic plan from the last session (see service).
+     */
     public record WorkoutPrefillDto(List<WorkoutBodyPartViewDto> bodyPart) {
         public static WorkoutPrefillDto empty() {
             return new WorkoutPrefillDto(List.of());

@@ -4,6 +4,7 @@ import com.dryrun.brogres.data.Workout;
 import com.dryrun.brogres.data.WorkoutResponseDtos.WorkoutExerciseViewDto;
 import com.dryrun.brogres.data.WorkoutResponseDtos.WorkoutPrefillDto;
 import com.dryrun.brogres.data.WorkoutSet;
+import com.dryrun.brogres.data.WorkoutSetStatus;
 import com.dryrun.brogres.data.WorkoutSubmitRequestDto;
 import com.dryrun.brogres.mapper.WorkoutSummaryMapper;
 import com.dryrun.brogres.repo.WorkoutSetRepository;
@@ -55,8 +56,8 @@ class WorkoutServiceTest {
     ArgumentCaptor<List<WorkoutSet>> setsCaptor;
 
     /**
-     * First workout of the day: creates a new {@link Workout}, persists it, saves all {@link WorkoutSet} rows from the DTO
-     * in order, and returns the saved workout.
+     * When no workout exists for today: creates a {@link Workout}, persists only POST rows as {@link WorkoutSetStatus#DONE}
+     * (no DB snapshot from previous sessions — prefill is read-side only).
      */
     @Test
     void createWorkout_whenDtoProvided_savesWorkoutAndSetsWithExpectedValues() {
@@ -64,24 +65,22 @@ class WorkoutServiceTest {
 
         WorkoutSubmitRequestDto request = new WorkoutSubmitRequestDto(List.of(
                 new WorkoutSubmitRequestDto.WorkoutBodyPartDto("chest", List.of(
-                        new WorkoutSubmitRequestDto.WorkoutExerciseDto("Bench Press", new BigDecimal("60.0"), 8),
-                        new WorkoutSubmitRequestDto.WorkoutExerciseDto("Bench Press", new BigDecimal("65.0"), 6)
+                        new WorkoutSubmitRequestDto.WorkoutExerciseDto("Bench Press", new BigDecimal("60.0"), 8, null),
+                        new WorkoutSubmitRequestDto.WorkoutExerciseDto("Bench Press", new BigDecimal("65.0"), 6, null)
                 )),
                 new WorkoutSubmitRequestDto.WorkoutBodyPartDto("back", List.of(
-                        new WorkoutSubmitRequestDto.WorkoutExerciseDto("Pull-ups", null, 10)
+                        new WorkoutSubmitRequestDto.WorkoutExerciseDto("Pull-ups", null, 10, null)
                 ))
         ));
 
         Workout factoryWorkout = new Workout();
         when(workoutFactory.createWorkout()).thenReturn(factoryWorkout);
         when(workoutRepository.findByWorkoutDate(today)).thenReturn(Optional.empty());
-        when(workoutRepository.findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(today)).thenReturn(Optional.empty());
         when(workoutRepository.save(any(Workout.class))).thenAnswer(invocation -> {
             Workout w = invocation.getArgument(0);
             w.setId(123L);
             return w;
         });
-        when(workoutSetRepository.findMaxLineOrderIndex(123L)).thenReturn(-1);
 
         Workout result = workoutService.createWorkout(request);
 
@@ -91,7 +90,7 @@ class WorkoutServiceTest {
         assertThat(savedWorkout.getWorkoutDate()).isEqualTo(today);
         assertThat(savedWorkout.getId()).isEqualTo(123L);
 
-        verify(workoutSetRepository).findMaxLineOrderIndex(123L);
+        verify(workoutSetRepository, never()).deleteAllByWorkoutId(any());
         verify(workoutSetRepository).saveAll(setsCaptor.capture());
         List<WorkoutSet> savedWorkoutSets = setsCaptor.getValue();
 
@@ -100,7 +99,7 @@ class WorkoutServiceTest {
             assertThat(s.getWorkout()).isSameAs(savedWorkout);
             assertThat(s.getExercise()).isNotBlank();
             assertThat(s.getRepetitions()).isPositive();
-            assertThat(s.isPlanned()).isFalse();
+            assertThat(s.getStatus()).isEqualTo(WorkoutSetStatus.DONE);
         });
 
         assertThat(savedWorkoutSets.get(0).getExercise()).isEqualTo("Bench Press");
@@ -124,79 +123,84 @@ class WorkoutServiceTest {
 
         assertThat(result).isSameAs(savedWorkout);
 
-        verify(workoutRepository).findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(today);
+        verify(workoutRepository, never()).findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(any());
         verifyNoMoreInteractions(workoutRepository, workoutSetRepository, workoutFactory);
     }
 
     /**
-     * First workout of the day with history: copies previous session’s executed sets as {@code planned=true} rows, then saves POST sets with {@code planned=false}.
+     * POST is a full replace: previous sessions are not copied into the DB on create; only the submitted rows are stored.
      */
     @Test
-    void createWorkout_whenNewDayAndPreviousWorkoutExists_copiesPreviousExecutedSetsAsPlanned() {
+    void createWorkout_whenNewDayAndPreviousWorkoutExists_savesOnlyPostRows() {
         LocalDate today = LocalDate.now();
-        LocalDate yesterday = today.minusDays(1);
 
         WorkoutSubmitRequestDto request = new WorkoutSubmitRequestDto(List.of(
                 new WorkoutSubmitRequestDto.WorkoutBodyPartDto("chest", List.of(
-                        new WorkoutSubmitRequestDto.WorkoutExerciseDto("Bench Press", new BigDecimal("60.0"), 8)
+                        new WorkoutSubmitRequestDto.WorkoutExerciseDto("Bench Press", new BigDecimal("60.0"), 8, null)
                 ))
         ));
 
         Workout factoryWorkout = new Workout();
         when(workoutFactory.createWorkout()).thenReturn(factoryWorkout);
         when(workoutRepository.findByWorkoutDate(today)).thenReturn(Optional.empty());
-
-        Workout previous = new Workout();
-        previous.setId(50L);
-        previous.setWorkoutDate(yesterday);
-        WorkoutSet prevSet = new WorkoutSet();
-        prevSet.setId(100L);
-        prevSet.setWorkout(previous);
-        prevSet.setBodyPart("chest");
-        prevSet.setExercise("Fly");
-        prevSet.setWeight(new BigDecimal("40"));
-        prevSet.setRepetitions(12);
-        prevSet.setLineOrder(0);
-        prevSet.setPlanned(false);
-        previous.getSets().add(prevSet);
-
-        when(workoutRepository.findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(today)).thenReturn(Optional.of(previous));
         when(workoutRepository.save(any(Workout.class))).thenAnswer(invocation -> {
             Workout w = invocation.getArgument(0);
             w.setId(123L);
             return w;
         });
-        when(workoutSetRepository.findMaxLineOrderIndex(123L)).thenReturn(0);
 
         workoutService.createWorkout(request);
 
-        verify(workoutSetRepository, times(2)).saveAll(setsCaptor.capture());
-        List<List<WorkoutSet>> batches = setsCaptor.getAllValues();
-        assertThat(batches).hasSize(2);
-
-        List<WorkoutSet> plannedBatch = batches.get(0);
-        assertThat(plannedBatch).hasSize(1);
-        assertThat(plannedBatch.get(0).isPlanned()).isTrue();
-        assertThat(plannedBatch.get(0).getExercise()).isEqualTo("Fly");
-        assertThat(plannedBatch.get(0).getLineOrder()).isZero();
-        assertThat(plannedBatch.get(0).getWorkout().getId()).isEqualTo(123L);
-
-        List<WorkoutSet> executedBatch = batches.get(1);
-        assertThat(executedBatch).hasSize(1);
-        assertThat(executedBatch.get(0).isPlanned()).isFalse();
-        assertThat(executedBatch.get(0).getExercise()).isEqualTo("Bench Press");
-        assertThat(executedBatch.get(0).getLineOrder()).isEqualTo(1);
-
-        verify(workoutRepository).findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(today);
+        verify(workoutSetRepository, times(1)).saveAll(setsCaptor.capture());
+        assertThat(setsCaptor.getValue()).hasSize(1);
+        assertThat(setsCaptor.getValue().get(0).getExercise()).isEqualTo("Bench Press");
+        assertThat(setsCaptor.getValue().get(0).getStatus()).isEqualTo(WorkoutSetStatus.DONE);
+        verify(workoutRepository, never()).findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(any());
     }
 
+    /**
+     * Only {@link WorkoutSetStatus#NEXT} from the client is stored as {@link WorkoutSetStatus#DONE}; other statuses pass through.
+     */
     @Test
-    void createWorkout_whenWorkoutForTodayAlreadyExists_appendsSetsToExistingWorkout() {
+    void createWorkout_mapsNextToDoneAndPreservesPlannedAndDone() {
         LocalDate today = LocalDate.now();
 
         WorkoutSubmitRequestDto request = new WorkoutSubmitRequestDto(List.of(
                 new WorkoutSubmitRequestDto.WorkoutBodyPartDto("chest", List.of(
-                        new WorkoutSubmitRequestDto.WorkoutExerciseDto("Bench Press", new BigDecimal("60.0"), 8)
+                        new WorkoutSubmitRequestDto.WorkoutExerciseDto("Done row", BigDecimal.TEN, 8, WorkoutSetStatus.DONE),
+                        new WorkoutSubmitRequestDto.WorkoutExerciseDto("Next row", BigDecimal.TEN, 8, WorkoutSetStatus.NEXT),
+                        new WorkoutSubmitRequestDto.WorkoutExerciseDto("Planned row", BigDecimal.TEN, 8, WorkoutSetStatus.PLANNED)
+                ))
+        ));
+
+        when(workoutFactory.createWorkout()).thenReturn(new Workout());
+        when(workoutRepository.findByWorkoutDate(today)).thenReturn(Optional.empty());
+        when(workoutRepository.save(any(Workout.class))).thenAnswer(invocation -> {
+            Workout w = invocation.getArgument(0);
+            w.setId(1L);
+            return w;
+        });
+
+        workoutService.createWorkout(request);
+
+        verify(workoutSetRepository).saveAll(setsCaptor.capture());
+        List<WorkoutSet> saved = setsCaptor.getValue();
+        assertThat(saved).hasSize(3);
+        assertThat(saved.get(0).getStatus()).isEqualTo(WorkoutSetStatus.DONE);
+        assertThat(saved.get(1).getStatus()).isEqualTo(WorkoutSetStatus.DONE);
+        assertThat(saved.get(2).getStatus()).isEqualTo(WorkoutSetStatus.PLANNED);
+    }
+
+    /**
+     * When today’s workout already exists: delete all its sets, then insert the POST snapshot as DONE from line 0.
+     */
+    @Test
+    void createWorkout_whenWorkoutForTodayAlreadyExists_replacesAllSets() {
+        LocalDate today = LocalDate.now();
+
+        WorkoutSubmitRequestDto request = new WorkoutSubmitRequestDto(List.of(
+                new WorkoutSubmitRequestDto.WorkoutBodyPartDto("chest", List.of(
+                        new WorkoutSubmitRequestDto.WorkoutExerciseDto("Bench Press", new BigDecimal("60.0"), 8, null)
                 ))
         ));
 
@@ -205,12 +209,12 @@ class WorkoutServiceTest {
         existing.setWorkoutDate(today);
 
         when(workoutRepository.findByWorkoutDate(today)).thenReturn(Optional.of(existing));
-        when(workoutSetRepository.findMaxLineOrderIndex(99L)).thenReturn(-1);
 
         Workout result = workoutService.createWorkout(request);
 
         verify(workoutRepository).findByWorkoutDate(today);
-        verify(workoutSetRepository).findMaxLineOrderIndex(99L);
+        verify(workoutSetRepository).deleteAllByWorkoutId(99L);
+        verify(workoutSetRepository).flush();
         verifyNoInteractions(workoutFactory);
         verify(workoutRepository, never()).save(any(Workout.class));
 
@@ -224,14 +228,14 @@ class WorkoutServiceTest {
         assertThat(persisted.getWeight()).isEqualByComparingTo(new BigDecimal("60.0"));
         assertThat(persisted.getRepetitions()).isEqualTo(8);
         assertThat(persisted.getLineOrder()).isZero();
-        assertThat(persisted.isPlanned()).isFalse();
+        assertThat(persisted.getStatus()).isEqualTo(WorkoutSetStatus.DONE);
         assertThat(result).isSameAs(existing);
 
         verifyNoMoreInteractions(workoutRepository, workoutSetRepository, workoutFactory);
     }
 
     @Test
-    void prefillWorkout_whenWorkoutAlreadyExistsForToday_returnsPlannedSetsOnly() {
+    void prefillWorkout_whenWorkoutExistsForToday_returnsAllSetsAndNextOnFirstPlanRow() {
         LocalDate today = LocalDate.now();
         when(workoutRepository.existsByWorkoutDate(today)).thenReturn(true);
 
@@ -246,7 +250,7 @@ class WorkoutServiceTest {
         planned.setWeight(new BigDecimal("50"));
         planned.setRepetitions(5);
         planned.setLineOrder(0);
-        planned.setPlanned(true);
+        planned.setStatus(WorkoutSetStatus.PLANNED);
         todayW.getSets().add(planned);
 
         when(workoutRepository.findByWorkoutDate(today)).thenReturn(Optional.of(todayW));
@@ -256,13 +260,55 @@ class WorkoutServiceTest {
         assertThat(result.bodyPart()).hasSize(1);
         assertThat(result.bodyPart().get(0).bodyPartName()).isEqualTo("chest");
         assertThat(result.bodyPart().get(0).exercises()).containsExactly(
-                new WorkoutExerciseViewDto("Bench", 0, new BigDecimal("50"), 5, true));
+                new WorkoutExerciseViewDto("Bench", 0, new BigDecimal("50"), 5, WorkoutSetStatus.NEXT));
 
         verify(workoutRepository).existsByWorkoutDate(today);
         verify(workoutRepository).findByWorkoutDate(today);
         verify(workoutRepository, never()).findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(any());
         verifyNoInteractions(workoutFactory, workoutSetRepository);
         verifyNoMoreInteractions(workoutRepository);
+    }
+
+    /**
+     * Prefill maps persisted DONE to PLANNED in the DTO, then the first plan row in order becomes NEXT.
+     */
+    @Test
+    void prefillWorkout_whenWorkoutExistsForToday_mapsDoneToPlannedThenFirstPlanRowNext() {
+        LocalDate today = LocalDate.now();
+        when(workoutRepository.existsByWorkoutDate(today)).thenReturn(true);
+
+        Workout todayW = new Workout();
+        todayW.setId(5L);
+        todayW.setWorkoutDate(today);
+
+        WorkoutSet done = new WorkoutSet();
+        done.setId(1L);
+        done.setWorkout(todayW);
+        done.setBodyPart("chest");
+        done.setExercise("Squat");
+        done.setWeight(new BigDecimal("100"));
+        done.setRepetitions(5);
+        done.setLineOrder(0);
+        done.setStatus(WorkoutSetStatus.DONE);
+
+        WorkoutSet planned = new WorkoutSet();
+        planned.setId(2L);
+        planned.setWorkout(todayW);
+        planned.setBodyPart("chest");
+        planned.setExercise("Bench");
+        planned.setWeight(new BigDecimal("50"));
+        planned.setRepetitions(5);
+        planned.setLineOrder(1);
+        planned.setStatus(WorkoutSetStatus.PLANNED);
+
+        todayW.getSets().addAll(List.of(done, planned));
+        when(workoutRepository.findByWorkoutDate(today)).thenReturn(Optional.of(todayW));
+
+        WorkoutPrefillDto result = workoutService.prefillWorkout();
+
+        assertThat(result.bodyPart().get(0).exercises()).containsExactly(
+                new WorkoutExerciseViewDto("Squat", 0, new BigDecimal("100"), 5, WorkoutSetStatus.NEXT),
+                new WorkoutExerciseViewDto("Bench", 1, new BigDecimal("50"), 5, WorkoutSetStatus.PLANNED));
     }
 
     @Test
@@ -300,7 +346,7 @@ class WorkoutServiceTest {
         s1.setWeight(new BigDecimal("60.0"));
         s1.setRepetitions(8);
         s1.setLineOrder(0);
-        s1.setPlanned(false);
+        s1.setStatus(WorkoutSetStatus.DONE);
 
         WorkoutSet s2 = new WorkoutSet();
         s2.setId(11L);
@@ -310,7 +356,7 @@ class WorkoutServiceTest {
         s2.setWeight(new BigDecimal("65.0"));
         s2.setRepetitions(6);
         s2.setLineOrder(1);
-        s2.setPlanned(false);
+        s2.setStatus(WorkoutSetStatus.DONE);
 
         WorkoutSet s3 = new WorkoutSet();
         s3.setId(12L);
@@ -320,7 +366,7 @@ class WorkoutServiceTest {
         s3.setWeight(null);
         s3.setRepetitions(10);
         s3.setLineOrder(2);
-        s3.setPlanned(false);
+        s3.setStatus(WorkoutSetStatus.DONE);
 
         previous.getSets().addAll(List.of(s3, s1, s2));
 
@@ -333,12 +379,12 @@ class WorkoutServiceTest {
         assertThat(result.bodyPart()).hasSize(2);
         assertThat(result.bodyPart().get(0).bodyPartName()).isEqualTo("chest");
         assertThat(result.bodyPart().get(0).exercises()).containsExactly(
-                new WorkoutExerciseViewDto("Bench Press", 0, new BigDecimal("60.0"), 8, false),
-                new WorkoutExerciseViewDto("Bench Press", 1, new BigDecimal("65.0"), 6, false)
+                new WorkoutExerciseViewDto("Bench Press", 0, new BigDecimal("60.0"), 8, WorkoutSetStatus.NEXT),
+                new WorkoutExerciseViewDto("Bench Press", 1, new BigDecimal("65.0"), 6, WorkoutSetStatus.PLANNED)
         );
         assertThat(result.bodyPart().get(1).bodyPartName()).isEqualTo("back");
         assertThat(result.bodyPart().get(1).exercises()).containsExactly(
-                new WorkoutExerciseViewDto("Pull-ups", 2, null, 10, false)
+                new WorkoutExerciseViewDto("Pull-ups", 2, null, 10, WorkoutSetStatus.PLANNED)
         );
 
         verify(workoutRepository).existsByWorkoutDate(today);
@@ -385,44 +431,29 @@ class WorkoutServiceTest {
     }
 
     /**
-     * Gdy ostatnia sesja ma tylko wiersze planu ({@code planned=true}), nie klonujemy ich do nowego dnia jako plan.
+     * New day POST persists only the request body; no implicit copy from a prior workout.
      */
     @Test
-    void createWorkout_whenNewDayButPreviousHasOnlyPlannedRows_doesNotCopyPlanAsSnapshot() {
+    void createWorkout_whenNewDayButPreviousHasOnlyPlannedRows_savesOnlyPost() {
         LocalDate today = LocalDate.now();
-        LocalDate yesterday = today.minusDays(1);
 
         WorkoutSubmitRequestDto request = new WorkoutSubmitRequestDto(List.of(
                 new WorkoutSubmitRequestDto.WorkoutBodyPartDto("chest", List.of(
-                        new WorkoutSubmitRequestDto.WorkoutExerciseDto("X", BigDecimal.ONE, 1)
+                        new WorkoutSubmitRequestDto.WorkoutExerciseDto("X", BigDecimal.ONE, 1, null)
                 ))
         ));
 
         when(workoutFactory.createWorkout()).thenReturn(new Workout());
         when(workoutRepository.findByWorkoutDate(today)).thenReturn(Optional.empty());
-
-        Workout previous = new Workout();
-        previous.setId(50L);
-        previous.setWorkoutDate(yesterday);
-        WorkoutSet onlyPlanned = new WorkoutSet();
-        onlyPlanned.setWorkout(previous);
-        onlyPlanned.setPlanned(true);
-        onlyPlanned.setBodyPart("chest");
-        onlyPlanned.setExercise("Ghost");
-        onlyPlanned.setRepetitions(1);
-        onlyPlanned.setLineOrder(0);
-        previous.getSets().add(onlyPlanned);
-
-        when(workoutRepository.findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(today)).thenReturn(Optional.of(previous));
         when(workoutRepository.save(any(Workout.class))).thenAnswer(invocation -> {
             Workout w = invocation.getArgument(0);
             w.setId(123L);
             return w;
         });
-        when(workoutSetRepository.findMaxLineOrderIndex(123L)).thenReturn(-1);
 
         workoutService.createWorkout(request);
 
         verify(workoutSetRepository, times(1)).saveAll(anyList());
+        verify(workoutRepository, never()).findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(any());
     }
 }

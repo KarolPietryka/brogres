@@ -5,6 +5,7 @@ import com.dryrun.brogres.data.WorkoutResponseDtos.WorkoutBodyPartViewDto;
 import com.dryrun.brogres.data.WorkoutResponseDtos.WorkoutExerciseViewDto;
 import com.dryrun.brogres.data.WorkoutResponseDtos.WorkoutSummaryDto;
 import com.dryrun.brogres.data.WorkoutSet;
+import com.dryrun.brogres.data.WorkoutSetStatus;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -19,32 +20,50 @@ public interface WorkoutSummaryMapper {
     @Mapping(target = "exercisePlan", expression = "java(toExercisePlan(workout))")
     WorkoutSummaryDto toSummary(Workout workout);
 
-    /** Wykonane serie ({@code planned == false}) — lista / historia. */
+    /** Executed sets ({@link WorkoutSetStatus#DONE}) — list / history. */
     default List<WorkoutBodyPartViewDto> toBodyParts(Workout workout) {
-        return bodyPartsFromSets(orderedSets(workout, false), false);
+        return bodyPartsFromSets(orderedSets(workout, false), null);
     }
 
-    /** Plan na dziś ({@code planned == true}) — prefill / drawer. */
+    /** Today’s plan slice ({@link WorkoutSetStatus#PLANNED} / {@link WorkoutSetStatus#NEXT}). */
     default List<WorkoutBodyPartViewDto> toExercisePlan(Workout workout) {
-        return bodyPartsFromSets(orderedSets(workout, true), true);
+        return bodyPartsFromSets(orderedSets(workout, true), null);
     }
 
     /**
-     * Wykonane serie z poprzedniej sesji jako plan na dziś (wszystkie z {@code planned=true}).
-     * Używane przez prefill gdy nie ma jeszcze workoutu na dziś.
+     * Last session’s executed sets as a synthetic plan (DTO rows start as {@link WorkoutSetStatus#PLANNED}).
+     * Used for prefill when there is no workout row for today yet.
      */
     default List<WorkoutBodyPartViewDto> toPrefillFromPreviousSession(Workout workout) {
-        return bodyPartsFromSets(orderedSets(workout, false), true);
+        return bodyPartsFromSets(orderedSets(workout, false), WorkoutSetStatus.PLANNED);
     }
 
-    private List<WorkoutSet> orderedSets(Workout workout, boolean planned) {
+    /**
+     * All sets for today’s workout (DONE + PLANNED + NEXT), for GET /workout/prefill when today’s session exists.
+     */
+    default List<WorkoutBodyPartViewDto> toPrefillTodayFullWorkout(Workout workout) {
+        List<WorkoutSet> all = workout.getSets().stream()
+                .sorted(Comparator.comparingInt(WorkoutSet::getLineOrder).thenComparing(WorkoutSet::getId))
+                .toList();
+        return bodyPartsFromSets(all, null);
+    }
+
+    private List<WorkoutSet> orderedSets(Workout workout, boolean planSlice) {
         return workout.getSets().stream()
-                .filter(s -> s.isPlanned() == planned)
+                .filter(s -> planSlice == isPlanStatus(s.getStatus()))
                 .sorted(Comparator.comparingInt(WorkoutSet::getLineOrder).thenComparing(WorkoutSet::getId))
                 .toList();
     }
 
-    private List<WorkoutBodyPartViewDto> bodyPartsFromSets(List<WorkoutSet> sets, boolean plannedFlag) {
+    private static boolean isPlanStatus(WorkoutSetStatus status) {
+        return status == WorkoutSetStatus.PLANNED || status == WorkoutSetStatus.NEXT;
+    }
+
+    /**
+     * @param statusOverride if non-null, every DTO row gets this status (e.g. synthetic prefill from last session);
+     *                       if null, status comes from the entity.
+     */
+    private List<WorkoutBodyPartViewDto> bodyPartsFromSets(List<WorkoutSet> sets, WorkoutSetStatus statusOverride) {
         if (sets.isEmpty()) {
             return List.of();
         }
@@ -60,8 +79,9 @@ public interface WorkoutSummaryMapper {
                 currentPart = part;
                 currentExercises = new ArrayList<>();
             }
+            WorkoutSetStatus rowStatus = statusOverride != null ? statusOverride : set.getStatus();
             currentExercises.add(new WorkoutExerciseViewDto(
-                    set.getExercise(), set.getLineOrder(), set.getWeight(), set.getRepetitions(), plannedFlag));
+                    set.getExercise(), set.getLineOrder(), set.getWeight(), set.getRepetitions(), rowStatus));
         }
         bodyParts.add(new WorkoutBodyPartViewDto(currentPart, currentExercises));
         return bodyParts;

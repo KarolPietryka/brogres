@@ -35,11 +35,9 @@ public class WorkoutSet {
     @Column(name = "line_order", nullable = false)
     private int lineOrder;
 
-    /**
-     * {@code true} = wiersz planu na dziś (snapshot z ostatniej sesji); {@code false} = wykonana seria z POST-a.
-     */
-    @Column(name = "planned", nullable = false)
-    private boolean planned = false;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 32)
+    private WorkoutSetStatus status = WorkoutSetStatus.DONE;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "workout_id", nullable = false)

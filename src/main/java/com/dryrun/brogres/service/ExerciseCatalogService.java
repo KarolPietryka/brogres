@@ -12,8 +12,11 @@ public class ExerciseCatalogService {
     private static final List<String> GROUP_ORDER = List.of("Klata", "Plecy", "Nogi", "Ramiona", "Barki");
 
     private static final Map<String, List<String>> BY_GROUP = Map.of(
-            "Klata", List.of("butterfly", "incline bunch press", "bunch press", "dip"),
-            "Nogi", List.of("squat")
+            "Klata", List.of("Butterfly", "Incline Bench Press", "Bench Press", "Dip"),
+            "Plecy", List.of("Pull Up", "Wiosłowanie ze sztangą", "Wiosłowanie na maszynie"),
+            "Nogi", List.of("Squat", "Squat na maszynie"),
+            "Ramiona", List.of("Chin Up", "Hantle curl", "Prostowanie ramienia na maszynie"),
+            "Barki", List.of("OHP sztanga", "OHP maszyna", "OHP hantle")
     );
 
     public Map<String, List<String>> exercisesByDisplayGroup() {

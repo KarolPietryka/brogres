@@ -7,5 +7,7 @@ http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
     <!-- Kolejne zmiany schematu: nowe pliki + include tutaj. Nie usuwaj plików już wdrożonych na prod bez sync DATABASECHANGELOG. -->
     <include file="db/changelog/changes/001-initial-schema.xml"/>
+    <include file="db/changelog/changes/002-workout-set-planned-to-status.xml"/>
+    <include file="db/changelog/changes/003-mock-workout-2026-03-27.xml"/>
 
 </databaseChangeLog>

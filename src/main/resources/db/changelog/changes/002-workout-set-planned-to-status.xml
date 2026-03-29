@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                                http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="002-workout-set-planned-to-status" author="brogres">
+        <addColumn tableName="workout_set">
+            <column name="status" type="varchar(32)" defaultValue="DONE">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <sql dbms="h2,postgresql" splitStatements="true" stripComments="true" endDelimiter=";">
+            UPDATE workout_set SET status = 'DONE';
+        </sql>
+        <dropColumn tableName="workout_set" columnName="planned"/>
+    </changeSet>
+
+</databaseChangeLog>
