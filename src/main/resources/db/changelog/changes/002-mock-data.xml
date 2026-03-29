@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="002-mock-data" author="developer" context="dev">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*) FROM workout WHERE workout_date = DATE '2026-03-20'
+            </sqlCheck>
+        </preConditions>
+
+        <insert tableName="workout">
+            <column name="workout_date" valueDate="2026-03-20"/>
+            <column name="created_on" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="modified_on" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+
+        <insert tableName="workout_set">
+            <column name="exercise" value="Wyciskanie sztangi"/>
+            <column name="repetitions" valueNumeric="8"/>
+            <column name="body_part" value="chest"/>
+            <column name="weight" valueNumeric="80.0"/>
+            <column name="line_order" valueNumeric="0"/>
+            <column name="workout_id" valueComputed="(SELECT id FROM workout WHERE workout_date = DATE '2026-03-20')"/>
+            <column name="planned" valueBoolean="false"/>
+        </insert>
+
+        <insert tableName="workout_set">
+            <column name="exercise" value="Wiosłowanie hantlem"/>
+            <column name="repetitions" valueNumeric="10"/>
+            <column name="body_part" value="back"/>
+            <column name="weight" valueNumeric="42.0"/>
+            <column name="line_order" valueNumeric="1"/>
+            <column name="workout_id" valueComputed="(SELECT id FROM workout WHERE workout_date = DATE '2026-03-20')"/>
+            <column name="planned" valueBoolean="false"/>
+        </insert>
+    </changeSet>
+
+</databaseChangeLog>
