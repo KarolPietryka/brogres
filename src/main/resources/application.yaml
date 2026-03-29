@@ -5,8 +5,8 @@ spring:
   application:
     name: brogres
   liquibase:
-    #In enabled in @LiquibaseConfiguration
-    enabled: false
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.xml
 
   datasource:
     url: jdbc:h2:mem:brogres;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
@@ -16,8 +16,8 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
-    defer-datasource-initialization: true
+      ddl-auto: none
+    defer-datasource-initialization: false
     properties:
       hibernate:
         dialect: org.hibernate.dialect.H2Dialect
@@ -25,7 +25,7 @@ spring:
 
   sql:
     init:
-      mode: embedded
+      mode: never
 
   h2:
     console:

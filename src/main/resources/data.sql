@@ -1,5 +1,5 @@
 -- Mock: trening 2026-03-20, 2 ćwiczenia (H2 / profil domyślny).
--- Uruchamiane po schemacie Hibernate (spring.jpa.defer-datasource-initialization).
+-- Uruchamiane po Liquibase (spring.jpa.defer-datasource-initialization).
 
 INSERT INTO workout (workout_date, created_by, modified_by, created_on, modified_on)
 SELECT DATE '2026-03-20', NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP

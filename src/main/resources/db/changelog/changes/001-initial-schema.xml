@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                                http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- Encje: Workout (+ Auditable), WorkoutSet. Przy pierwszym wykonaniu changesetu: usuwa istniejące tabele (wszystkie dane), potem tworzy schemat od zera. -->
+    <changeSet id="001-initial-schema" author="brogres">
+        <sql dbms="h2,postgresql" splitStatements="true" stripComments="true" endDelimiter=";">
+            DROP TABLE IF EXISTS workout_set CASCADE;
+            DROP TABLE IF EXISTS workout CASCADE;
+        </sql>
+
+        <createTable tableName="workout">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="workout_date" type="date">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_by" type="varchar(255)"/>
+            <column name="modified_by" type="varchar(255)"/>
+            <column name="created_on" type="timestamp"/>
+            <column name="modified_on" type="timestamp"/>
+        </createTable>
+
+        <createTable tableName="workout_set">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="exercise" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="repetitions" type="integer">
+                <constraints nullable="false"/>
+            </column>
+            <column name="body_part" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="weight" type="numeric(19, 2)"/>
+            <column name="line_order" type="integer">
+                <constraints nullable="false"/>
+            </column>
+            <column name="planned" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="workout_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="workout_set" baseColumnNames="workout_id"
+                                 constraintName="fk_workout_set_workout"
+                                 referencedTableName="workout" referencedColumnNames="id"/>
+    </changeSet>
+
+    <!-- Przeniesione z src/main/resources/data.sql -->
+    <changeSet id="001a-mock-data-2026-03-20" author="brogres" context="dev">
+        <sql dbms="h2,postgresql" splitStatements="true" stripComments="true" endDelimiter=";">
+            INSERT INTO workout (workout_date, created_by, modified_by, created_on, modified_on)
+            SELECT DATE '2026-03-20', NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+            WHERE NOT EXISTS (SELECT 1 FROM workout WHERE workout_date = DATE '2026-03-20');
+
+            INSERT INTO workout_set (exercise, repetitions, body_part, weight, line_order, workout_id, planned)
+            SELECT 'Wyciskanie sztangi', 8, 'chest', 80.0, 0, w.id, FALSE
+            FROM workout w
+            WHERE w.workout_date = DATE '2026-03-20'
+              AND NOT EXISTS (SELECT 1 FROM workout_set s WHERE s.workout_id = w.id AND s.line_order = 0);
+
+            INSERT INTO workout_set (exercise, repetitions, body_part, weight, line_order, workout_id, planned)
+            SELECT 'Wiosłowanie hantlem', 10, 'back', 42.0, 1, w.id, FALSE
+            FROM workout w
+            WHERE w.workout_date = DATE '2026-03-20'
+              AND NOT EXISTS (SELECT 1 FROM workout_set s WHERE s.workout_id = w.id AND s.line_order = 1);
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>
