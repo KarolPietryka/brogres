@@ -64,13 +64,9 @@ class WorkoutServiceTest {
         LocalDate today = LocalDate.now();
 
         WorkoutSubmitRequestDto request = new WorkoutSubmitRequestDto(List.of(
-                new WorkoutSubmitRequestDto.WorkoutBodyPartDto("chest", List.of(
-                        new WorkoutSubmitRequestDto.WorkoutExerciseDto("Bench Press", new BigDecimal("60.0"), 8, null),
-                        new WorkoutSubmitRequestDto.WorkoutExerciseDto("Bench Press", new BigDecimal("65.0"), 6, null)
-                )),
-                new WorkoutSubmitRequestDto.WorkoutBodyPartDto("back", List.of(
-                        new WorkoutSubmitRequestDto.WorkoutExerciseDto("Pull-ups", null, 10, null)
-                ))
+                new WorkoutSubmitRequestDto.WorkoutExerciseDto("chest", "Bench Press", new BigDecimal("60.0"), 8, null),
+                new WorkoutSubmitRequestDto.WorkoutExerciseDto("chest", "Bench Press", new BigDecimal("65.0"), 6, null),
+                new WorkoutSubmitRequestDto.WorkoutExerciseDto("back", "Pull-ups", null, 10, null)
         ));
 
         Workout factoryWorkout = new Workout();
@@ -135,9 +131,7 @@ class WorkoutServiceTest {
         LocalDate today = LocalDate.now();
 
         WorkoutSubmitRequestDto request = new WorkoutSubmitRequestDto(List.of(
-                new WorkoutSubmitRequestDto.WorkoutBodyPartDto("chest", List.of(
-                        new WorkoutSubmitRequestDto.WorkoutExerciseDto("Bench Press", new BigDecimal("60.0"), 8, null)
-                ))
+                new WorkoutSubmitRequestDto.WorkoutExerciseDto("chest", "Bench Press", new BigDecimal("60.0"), 8, null)
         ));
 
         Workout factoryWorkout = new Workout();
@@ -166,11 +160,9 @@ class WorkoutServiceTest {
         LocalDate today = LocalDate.now();
 
         WorkoutSubmitRequestDto request = new WorkoutSubmitRequestDto(List.of(
-                new WorkoutSubmitRequestDto.WorkoutBodyPartDto("chest", List.of(
-                        new WorkoutSubmitRequestDto.WorkoutExerciseDto("Done row", BigDecimal.TEN, 8, WorkoutSetStatus.DONE),
-                        new WorkoutSubmitRequestDto.WorkoutExerciseDto("Next row", BigDecimal.TEN, 8, WorkoutSetStatus.NEXT),
-                        new WorkoutSubmitRequestDto.WorkoutExerciseDto("Planned row", BigDecimal.TEN, 8, WorkoutSetStatus.PLANNED)
-                ))
+                new WorkoutSubmitRequestDto.WorkoutExerciseDto("chest", "Done row", BigDecimal.TEN, 8, WorkoutSetStatus.DONE),
+                new WorkoutSubmitRequestDto.WorkoutExerciseDto("chest", "Next row", BigDecimal.TEN, 8, WorkoutSetStatus.NEXT),
+                new WorkoutSubmitRequestDto.WorkoutExerciseDto("chest", "Planned row", BigDecimal.TEN, 8, WorkoutSetStatus.PLANNED)
         ));
 
         when(workoutFactory.createWorkout()).thenReturn(new Workout());
@@ -199,9 +191,7 @@ class WorkoutServiceTest {
         LocalDate today = LocalDate.now();
 
         WorkoutSubmitRequestDto request = new WorkoutSubmitRequestDto(List.of(
-                new WorkoutSubmitRequestDto.WorkoutBodyPartDto("chest", List.of(
-                        new WorkoutSubmitRequestDto.WorkoutExerciseDto("Bench Press", new BigDecimal("60.0"), 8, null)
-                ))
+                new WorkoutSubmitRequestDto.WorkoutExerciseDto("chest", "Bench Press", new BigDecimal("60.0"), 8, null)
         ));
 
         Workout existing = new Workout();
@@ -257,10 +247,8 @@ class WorkoutServiceTest {
 
         WorkoutPrefillDto result = workoutService.prefillWorkout();
 
-        assertThat(result.bodyPart()).hasSize(1);
-        assertThat(result.bodyPart().get(0).bodyPartName()).isEqualTo("chest");
-        assertThat(result.bodyPart().get(0).exercises()).containsExactly(
-                new WorkoutExerciseViewDto("Bench", 0, new BigDecimal("50"), 5, WorkoutSetStatus.NEXT));
+        assertThat(result.bodyPart()).containsExactly(
+                new WorkoutExerciseViewDto("chest", "Bench", 0, new BigDecimal("50"), 5, WorkoutSetStatus.NEXT));
 
         verify(workoutRepository).existsByWorkoutDate(today);
         verify(workoutRepository).findByWorkoutDate(today);
@@ -306,9 +294,9 @@ class WorkoutServiceTest {
 
         WorkoutPrefillDto result = workoutService.prefillWorkout();
 
-        assertThat(result.bodyPart().get(0).exercises()).containsExactly(
-                new WorkoutExerciseViewDto("Squat", 0, new BigDecimal("100"), 5, WorkoutSetStatus.NEXT),
-                new WorkoutExerciseViewDto("Bench", 1, new BigDecimal("50"), 5, WorkoutSetStatus.PLANNED));
+        assertThat(result.bodyPart()).containsExactly(
+                new WorkoutExerciseViewDto("chest", "Squat", 0, new BigDecimal("100"), 5, WorkoutSetStatus.NEXT),
+                new WorkoutExerciseViewDto("chest", "Bench", 1, new BigDecimal("50"), 5, WorkoutSetStatus.PLANNED));
     }
 
     @Test
@@ -330,7 +318,7 @@ class WorkoutServiceTest {
     }
 
     @Test
-    void prefillWorkout_whenNoWorkoutTodayButEarlierWorkoutExists_mapsExecutedSetsToBodyPartStructure() {
+    void prefillWorkout_whenNoWorkoutTodayButEarlierWorkoutExists_mapsExecutedSetsToFlatExerciseList() {
         LocalDate today = LocalDate.now();
         LocalDate yesterday = today.minusDays(1);
 
@@ -376,16 +364,10 @@ class WorkoutServiceTest {
 
         WorkoutPrefillDto result = workoutService.prefillWorkout();
 
-        assertThat(result.bodyPart()).hasSize(2);
-        assertThat(result.bodyPart().get(0).bodyPartName()).isEqualTo("chest");
-        assertThat(result.bodyPart().get(0).exercises()).containsExactly(
-                new WorkoutExerciseViewDto("Bench Press", 0, new BigDecimal("60.0"), 8, WorkoutSetStatus.NEXT),
-                new WorkoutExerciseViewDto("Bench Press", 1, new BigDecimal("65.0"), 6, WorkoutSetStatus.PLANNED)
-        );
-        assertThat(result.bodyPart().get(1).bodyPartName()).isEqualTo("back");
-        assertThat(result.bodyPart().get(1).exercises()).containsExactly(
-                new WorkoutExerciseViewDto("Pull-ups", 2, null, 10, WorkoutSetStatus.PLANNED)
-        );
+        assertThat(result.bodyPart()).containsExactly(
+                new WorkoutExerciseViewDto("chest", "Bench Press", 0, new BigDecimal("60.0"), 8, WorkoutSetStatus.NEXT),
+                new WorkoutExerciseViewDto("chest", "Bench Press", 1, new BigDecimal("65.0"), 6, WorkoutSetStatus.PLANNED),
+                new WorkoutExerciseViewDto("back", "Pull-ups", 2, null, 10, WorkoutSetStatus.PLANNED));
 
         verify(workoutRepository).existsByWorkoutDate(today);
         verify(workoutRepository).findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(today);
@@ -438,9 +420,7 @@ class WorkoutServiceTest {
         LocalDate today = LocalDate.now();
 
         WorkoutSubmitRequestDto request = new WorkoutSubmitRequestDto(List.of(
-                new WorkoutSubmitRequestDto.WorkoutBodyPartDto("chest", List.of(
-                        new WorkoutSubmitRequestDto.WorkoutExerciseDto("X", BigDecimal.ONE, 1, null)
-                ))
+                new WorkoutSubmitRequestDto.WorkoutExerciseDto("chest", "X", BigDecimal.ONE, 1, null)
         ));
 
         when(workoutFactory.createWorkout()).thenReturn(new Workout());

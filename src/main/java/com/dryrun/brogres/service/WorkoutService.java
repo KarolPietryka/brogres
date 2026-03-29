@@ -1,7 +1,6 @@
 package com.dryrun.brogres.service;
 
 import com.dryrun.brogres.data.Workout;
-import com.dryrun.brogres.data.WorkoutResponseDtos.WorkoutBodyPartViewDto;
 import com.dryrun.brogres.data.WorkoutResponseDtos.WorkoutExerciseViewDto;
 import com.dryrun.brogres.data.WorkoutResponseDtos.WorkoutPrefillDto;
 import com.dryrun.brogres.data.WorkoutResponseDtos.WorkoutSummaryDto;
@@ -54,18 +53,16 @@ public class WorkoutService {
 
         int lineOrder = 0;
         List<WorkoutSet> setsToSave = new ArrayList<>();
-        for (WorkoutSubmitRequestDto.WorkoutBodyPartDto bodyPartDto : request.bodyPart()) {
-            for (WorkoutSubmitRequestDto.WorkoutExerciseDto exerciseDto : bodyPartDto.exercises()) {
-                WorkoutSet workoutSet = new WorkoutSet();
-                workoutSet.setWorkout(workout);
-                workoutSet.setBodyPart(bodyPartDto.bodyPartName());
-                workoutSet.setExercise(exerciseDto.name());
-                workoutSet.setWeight(exerciseDto.weight());
-                workoutSet.setRepetitions(exerciseDto.reps());
-                workoutSet.setLineOrder(lineOrder++);
-                workoutSet.setStatus(persistStatusFromSubmit(exerciseDto.status()));
-                setsToSave.add(workoutSet);
-            }
+        for (WorkoutSubmitRequestDto.WorkoutExerciseDto exerciseDto : request.exercises()) {
+            WorkoutSet workoutSet = new WorkoutSet();
+            workoutSet.setWorkout(workout);
+            workoutSet.setBodyPart(exerciseDto.bodyPartName());
+            workoutSet.setExercise(exerciseDto.name());
+            workoutSet.setWeight(exerciseDto.weight());
+            workoutSet.setRepetitions(exerciseDto.reps());
+            workoutSet.setLineOrder(lineOrder++);
+            workoutSet.setStatus(persistStatusFromSubmit(exerciseDto.status()));
+            setsToSave.add(workoutSet);
         }
 
         workoutSetRepository.saveAll(setsToSave);
@@ -88,35 +85,47 @@ public class WorkoutService {
     @Transactional(readOnly = true)
     public WorkoutPrefillDto prefillWorkout() {
         LocalDate today = LocalDate.now();
-        if (workoutRepository.existsByWorkoutDate(today)) {
-            return workoutRepository.findByWorkoutDate(today)
-                    .map(w -> new WorkoutPrefillDto(markPrefillHeadAsNext(
-                            mapDoneToPlannedForPrefill(workoutSummaryMapper.toPrefillTodayFullWorkout(w)))))
-                    .orElseGet(WorkoutPrefillDto::empty);
+
+        boolean hasTodayWorkout = workoutRepository.existsByWorkoutDate(today);
+        if (hasTodayWorkout) {
+            Optional<Workout> todayWorkoutOpt = workoutRepository.findByWorkoutDate(today);
+            if (todayWorkoutOpt.isEmpty()) {
+                return WorkoutPrefillDto.empty();
+            }
+
+            Workout todayWorkout = todayWorkoutOpt.get();
+            var fullToday = workoutSummaryMapper.toPrefillTodayFullWorkout(todayWorkout);
+            var withNextMarked = markPrefillHeadAsNext(fullToday);
+
+            return new WorkoutPrefillDto(withNextMarked);
         }
-        return workoutRepository.findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(today)
-                .map(w -> new WorkoutPrefillDto(
-                        markPrefillHeadAsNext(workoutSummaryMapper.toPrefillFromPreviousSession(w))))
-                .orElseGet(WorkoutPrefillDto::empty);
+
+        Optional<Workout> previousWorkoutOpt =
+                workoutRepository.findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(today);
+        if (previousWorkoutOpt.isEmpty()) {
+            return WorkoutPrefillDto.empty();
+        }
+
+        Workout previousWorkout = previousWorkoutOpt.get();
+        var previousSessionAsPlan = workoutSummaryMapper.toPrefillFromPreviousSession(previousWorkout);
+        var withNextMarked = markPrefillHeadAsNext(previousSessionAsPlan);
+
+        return new WorkoutPrefillDto(withNextMarked);
     }
 
     /**
      * For today’s workout prefill: rows persisted as {@link WorkoutSetStatus#DONE} are shown as {@link WorkoutSetStatus#PLANNED}
      * in the DTO (queue / plan view), then {@link #markPrefillHeadAsNext} runs.
      */
-    private static List<WorkoutBodyPartViewDto> mapDoneToPlannedForPrefill(List<WorkoutBodyPartViewDto> bodyPart) {
+    private static List<WorkoutExerciseViewDto> mapDoneToPlannedForPrefill(List<WorkoutExerciseViewDto> bodyPart) {
         if (bodyPart == null || bodyPart.isEmpty()) {
             return bodyPart;
         }
         return bodyPart.stream()
-                .map(bp -> new WorkoutBodyPartViewDto(
-                        bp.bodyPartName(),
-                        bp.exercises().stream()
-                                .map(e -> e.status() == WorkoutSetStatus.DONE
-                                        ? new WorkoutExerciseViewDto(
-                                                e.name(), e.orderId(), e.weight(), e.reps(), WorkoutSetStatus.PLANNED)
-                                        : e)
-                                .toList()))
+                .map(e -> e.status() == WorkoutSetStatus.DONE
+                        ? new WorkoutExerciseViewDto(
+                                e.bodyPartName(), e.name(), e.orderId(), e.weight(), e.reps(), WorkoutSetStatus.PLANNED)
+                        : e)
                 .toList();
     }
 
@@ -125,12 +134,11 @@ public class WorkoutService {
      * in the DTO; other plan rows become {@link WorkoutSetStatus#PLANNED}. {@link WorkoutSetStatus#DONE} rows are left as-is
      * (today’s prefill should call {@link #mapDoneToPlannedForPrefill} first so DONE does not appear as completed in the modal).
      */
-    private static List<WorkoutBodyPartViewDto> markPrefillHeadAsNext(List<WorkoutBodyPartViewDto> bodyPart) {
+    private static List<WorkoutExerciseViewDto> markPrefillHeadAsNext(List<WorkoutExerciseViewDto> bodyPart) {
         if (bodyPart == null || bodyPart.isEmpty()) {
             return bodyPart;
         }
         Optional<WorkoutExerciseViewDto> head = bodyPart.stream()
-                .flatMap(bp -> bp.exercises().stream())
                 .filter(e -> e.status() == WorkoutSetStatus.PLANNED || e.status() == WorkoutSetStatus.NEXT)
                 .min(PREFILL_PLAN_ROW_ORDER);
         if (head.isEmpty()) {
@@ -138,29 +146,27 @@ public class WorkoutService {
         }
         WorkoutExerciseViewDto h = head.get();
         return bodyPart.stream()
-                .map(bp -> new WorkoutBodyPartViewDto(
-                        bp.bodyPartName(),
-                        bp.exercises().stream()
-                                .map(e -> {
-                                    if (e.status() == WorkoutSetStatus.DONE) {
-                                        return e;
-                                    }
-                                    // Change only head row to NEXT, all others keep PLANNED.
-                                    WorkoutSetStatus s = samePlanRow(e, h) ? WorkoutSetStatus.NEXT : WorkoutSetStatus.PLANNED;
-                                    return new WorkoutExerciseViewDto(e.name(), e.orderId(), e.weight(), e.reps(), s);
-                                })
-                                .toList()))
+                .map(e -> {
+                    if (e.status() == WorkoutSetStatus.DONE) {
+                        return e;
+                    }
+                    // Change only head row to NEXT, all others keep PLANNED.
+                    WorkoutSetStatus s = samePlanRow(e, h) ? WorkoutSetStatus.NEXT : WorkoutSetStatus.PLANNED;
+                    return new WorkoutExerciseViewDto(e.bodyPartName(), e.name(), e.orderId(), e.weight(), e.reps(), s);
+                })
                 .toList();
     }
 
     private static final Comparator<WorkoutExerciseViewDto> PREFILL_PLAN_ROW_ORDER =
             Comparator.comparingInt(WorkoutExerciseViewDto::orderId)
+                    .thenComparing(WorkoutExerciseViewDto::bodyPartName)
                     .thenComparing(WorkoutExerciseViewDto::name)
                     .thenComparing(WorkoutExerciseViewDto::weight, Comparator.nullsFirst(Comparator.naturalOrder()))
                     .thenComparingInt(WorkoutExerciseViewDto::reps);
 
     private static boolean samePlanRow(WorkoutExerciseViewDto a, WorkoutExerciseViewDto b) {
         return a.orderId() == b.orderId()
+                && a.bodyPartName().equals(b.bodyPartName())
                 && a.name().equals(b.name())
                 && Objects.equals(a.weight(), b.weight())
                 && a.reps() == b.reps();

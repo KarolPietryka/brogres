@@ -9,26 +9,33 @@ public final class WorkoutResponseDtos {
     private WorkoutResponseDtos() {
     }
 
+    /**
+     * {@code bodyPart} = executed ({@link WorkoutSetStatus#DONE}); {@code exercisePlan} = planned slice.
+     * Each element carries {@code bodyPartName} like {@link com.dryrun.brogres.data.WorkoutSet}.
+     */
     public record WorkoutSummaryDto(
             long id,
             LocalDate workoutDate,
-            List<WorkoutBodyPartViewDto> bodyPart,
-            List<WorkoutBodyPartViewDto> exercisePlan) {
-    }
-
-    public record WorkoutBodyPartViewDto(String bodyPartName, List<WorkoutExerciseViewDto> exercises) {
+            List<WorkoutExerciseViewDto> bodyPart,
+            List<WorkoutExerciseViewDto> exercisePlan) {
     }
 
     /** {@link WorkoutSetStatus} for FE styling (PLANNED / NEXT / DONE). */
-    public record WorkoutExerciseViewDto(String name, int orderId, BigDecimal weight, int reps, WorkoutSetStatus status) {
+    public record WorkoutExerciseViewDto(
+            String bodyPartName,
+            String name,
+            int orderId,
+            BigDecimal weight,
+            int reps,
+            WorkoutSetStatus status) {
     }
 
     /**
-     * GET /workout/prefill — same shape as {@code bodyPart} in {@link WorkoutSubmitRequestDto}.
+     * GET /workout/prefill — flat {@code bodyPart} list (same per-row shape as {@link WorkoutSubmitRequestDto.WorkoutExerciseDto}).
      * When today’s workout exists: service maps persisted {@code DONE} rows to {@code PLANNED} in the DTO, then picks one {@code NEXT}.
      * When it does not: synthetic plan from the last session (see service).
      */
-    public record WorkoutPrefillDto(List<WorkoutBodyPartViewDto> bodyPart) {
+    public record WorkoutPrefillDto(List<WorkoutExerciseViewDto> bodyPart) {
         public static WorkoutPrefillDto empty() {
             return new WorkoutPrefillDto(List.of());
         }

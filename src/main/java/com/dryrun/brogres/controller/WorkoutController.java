@@ -37,7 +37,7 @@ public class WorkoutController {
     }
 
     /**
-     * Prefill for the next session: {@code bodyPart} matches POST shape; empty when nothing to clone (e.g. workout already today).
+     * Prefill for the next session: flat {@code bodyPart} list (same per-row shape as POST {@code exercises}); empty when nothing to clone.
      */
     @GetMapping("/prefill")
     public WorkoutPrefillDto prefillWorkout() {
