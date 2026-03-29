@@ -7,8 +7,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: validate
-    defer-datasource-initialization: true
+      ddl-auto: none
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
