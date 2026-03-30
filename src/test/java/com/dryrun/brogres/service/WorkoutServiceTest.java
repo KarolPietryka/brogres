@@ -1,5 +1,6 @@
 package com.dryrun.brogres.service;
 
+import com.dryrun.brogres.data.AppUser;
 import com.dryrun.brogres.data.Workout;
 import com.dryrun.brogres.data.WorkoutResponseDtos.WorkoutExerciseViewDto;
 import com.dryrun.brogres.data.WorkoutResponseDtos.WorkoutPrefillDto;
@@ -7,8 +8,10 @@ import com.dryrun.brogres.data.WorkoutSet;
 import com.dryrun.brogres.data.WorkoutSetStatus;
 import com.dryrun.brogres.data.WorkoutSubmitRequestDto;
 import com.dryrun.brogres.mapper.WorkoutSummaryMapper;
+import com.dryrun.brogres.repo.AppUserRepository;
 import com.dryrun.brogres.repo.WorkoutSetRepository;
 import com.dryrun.brogres.repo.WorkoutRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -34,8 +37,13 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class WorkoutServiceTest {
 
+    private static final long USER_ID = 1L;
+
     @Mock
     WorkoutFactory workoutFactory;
+
+    @Mock
+    AppUserRepository appUserRepository;
 
     @Mock
     WorkoutRepository workoutRepository;
@@ -48,6 +56,13 @@ class WorkoutServiceTest {
 
     @InjectMocks
     WorkoutService workoutService;
+
+    @BeforeEach
+    void stubCurrentUser() {
+        AppUser user = new AppUser();
+        user.setId(USER_ID);
+        when(appUserRepository.findById(USER_ID)).thenReturn(Optional.of(user));
+    }
 
     @Captor
     ArgumentCaptor<Workout> workoutCaptor;
@@ -71,16 +86,16 @@ class WorkoutServiceTest {
 
         Workout factoryWorkout = new Workout();
         when(workoutFactory.createWorkout()).thenReturn(factoryWorkout);
-        when(workoutRepository.findByWorkoutDate(today)).thenReturn(Optional.empty());
+        when(workoutRepository.findByWorkoutDateAndUser_Id(today, USER_ID)).thenReturn(Optional.empty());
         when(workoutRepository.save(any(Workout.class))).thenAnswer(invocation -> {
             Workout w = invocation.getArgument(0);
             w.setId(123L);
             return w;
         });
 
-        Workout result = workoutService.createWorkout(request);
+        Workout result = workoutService.createWorkout(USER_ID, request);
 
-        verify(workoutRepository).findByWorkoutDate(today);
+        verify(workoutRepository).findByWorkoutDateAndUser_Id(today, USER_ID);
         verify(workoutRepository).save(workoutCaptor.capture());
         Workout savedWorkout = workoutCaptor.getValue();
         assertThat(savedWorkout.getWorkoutDate()).isEqualTo(today);
@@ -119,7 +134,7 @@ class WorkoutServiceTest {
 
         assertThat(result).isSameAs(savedWorkout);
 
-        verify(workoutRepository, never()).findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(any());
+        verify(workoutRepository, never()).findFirstByUser_IdAndWorkoutDateLessThanOrderByWorkoutDateDesc(any(), any());
         verifyNoMoreInteractions(workoutRepository, workoutSetRepository, workoutFactory);
     }
 
@@ -136,20 +151,20 @@ class WorkoutServiceTest {
 
         Workout factoryWorkout = new Workout();
         when(workoutFactory.createWorkout()).thenReturn(factoryWorkout);
-        when(workoutRepository.findByWorkoutDate(today)).thenReturn(Optional.empty());
+        when(workoutRepository.findByWorkoutDateAndUser_Id(today, USER_ID)).thenReturn(Optional.empty());
         when(workoutRepository.save(any(Workout.class))).thenAnswer(invocation -> {
             Workout w = invocation.getArgument(0);
             w.setId(123L);
             return w;
         });
 
-        workoutService.createWorkout(request);
+        workoutService.createWorkout(USER_ID, request);
 
         verify(workoutSetRepository, times(1)).saveAll(setsCaptor.capture());
         assertThat(setsCaptor.getValue()).hasSize(1);
         assertThat(setsCaptor.getValue().get(0).getExercise()).isEqualTo("Bench Press");
         assertThat(setsCaptor.getValue().get(0).getStatus()).isEqualTo(WorkoutSetStatus.DONE);
-        verify(workoutRepository, never()).findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(any());
+        verify(workoutRepository, never()).findFirstByUser_IdAndWorkoutDateLessThanOrderByWorkoutDateDesc(any(), any());
     }
 
     /**
@@ -166,14 +181,14 @@ class WorkoutServiceTest {
         ));
 
         when(workoutFactory.createWorkout()).thenReturn(new Workout());
-        when(workoutRepository.findByWorkoutDate(today)).thenReturn(Optional.empty());
+        when(workoutRepository.findByWorkoutDateAndUser_Id(today, USER_ID)).thenReturn(Optional.empty());
         when(workoutRepository.save(any(Workout.class))).thenAnswer(invocation -> {
             Workout w = invocation.getArgument(0);
             w.setId(1L);
             return w;
         });
 
-        workoutService.createWorkout(request);
+        workoutService.createWorkout(USER_ID, request);
 
         verify(workoutSetRepository).saveAll(setsCaptor.capture());
         List<WorkoutSet> saved = setsCaptor.getValue();
@@ -198,11 +213,11 @@ class WorkoutServiceTest {
         existing.setId(99L);
         existing.setWorkoutDate(today);
 
-        when(workoutRepository.findByWorkoutDate(today)).thenReturn(Optional.of(existing));
+        when(workoutRepository.findByWorkoutDateAndUser_Id(today, USER_ID)).thenReturn(Optional.of(existing));
 
-        Workout result = workoutService.createWorkout(request);
+        Workout result = workoutService.createWorkout(USER_ID, request);
 
-        verify(workoutRepository).findByWorkoutDate(today);
+        verify(workoutRepository).findByWorkoutDateAndUser_Id(today, USER_ID);
         verify(workoutSetRepository).deleteAllByWorkoutId(99L);
         verify(workoutSetRepository).flush();
         verifyNoInteractions(workoutFactory);
@@ -227,7 +242,7 @@ class WorkoutServiceTest {
     @Test
     void prefillWorkout_whenWorkoutExistsForToday_returnsAllSetsAndNextOnFirstPlanRow() {
         LocalDate today = LocalDate.now();
-        when(workoutRepository.existsByWorkoutDate(today)).thenReturn(true);
+        when(workoutRepository.existsByWorkoutDateAndUser_Id(today, USER_ID)).thenReturn(true);
 
         Workout todayW = new Workout();
         todayW.setId(5L);
@@ -243,16 +258,16 @@ class WorkoutServiceTest {
         planned.setStatus(WorkoutSetStatus.PLANNED);
         todayW.getSets().add(planned);
 
-        when(workoutRepository.findByWorkoutDate(today)).thenReturn(Optional.of(todayW));
+        when(workoutRepository.findByWorkoutDateAndUser_Id(today, USER_ID)).thenReturn(Optional.of(todayW));
 
-        WorkoutPrefillDto result = workoutService.prefillWorkout();
+        WorkoutPrefillDto result = workoutService.prefillWorkout(USER_ID);
 
         assertThat(result.bodyPart()).containsExactly(
                 new WorkoutExerciseViewDto("chest", "Bench", 0, new BigDecimal("50"), 5, WorkoutSetStatus.NEXT));
 
-        verify(workoutRepository).existsByWorkoutDate(today);
-        verify(workoutRepository).findByWorkoutDate(today);
-        verify(workoutRepository, never()).findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(any());
+        verify(workoutRepository).existsByWorkoutDateAndUser_Id(today, USER_ID);
+        verify(workoutRepository).findByWorkoutDateAndUser_Id(today, USER_ID);
+        verify(workoutRepository, never()).findFirstByUser_IdAndWorkoutDateLessThanOrderByWorkoutDateDesc(any(), any());
         verifyNoInteractions(workoutFactory, workoutSetRepository);
         verifyNoMoreInteractions(workoutRepository);
     }
@@ -263,7 +278,7 @@ class WorkoutServiceTest {
     @Test
     void prefillWorkout_whenWorkoutExistsForToday_mapsDoneToPlannedThenFirstPlanRowNext() {
         LocalDate today = LocalDate.now();
-        when(workoutRepository.existsByWorkoutDate(today)).thenReturn(true);
+        when(workoutRepository.existsByWorkoutDateAndUser_Id(today, USER_ID)).thenReturn(true);
 
         Workout todayW = new Workout();
         todayW.setId(5L);
@@ -290,9 +305,9 @@ class WorkoutServiceTest {
         planned.setStatus(WorkoutSetStatus.PLANNED);
 
         todayW.getSets().addAll(List.of(done, planned));
-        when(workoutRepository.findByWorkoutDate(today)).thenReturn(Optional.of(todayW));
+        when(workoutRepository.findByWorkoutDateAndUser_Id(today, USER_ID)).thenReturn(Optional.of(todayW));
 
-        WorkoutPrefillDto result = workoutService.prefillWorkout();
+        WorkoutPrefillDto result = workoutService.prefillWorkout(USER_ID);
 
         assertThat(result.bodyPart()).containsExactly(
                 new WorkoutExerciseViewDto("chest", "Squat", 0, new BigDecimal("100"), 5, WorkoutSetStatus.NEXT),
@@ -302,18 +317,18 @@ class WorkoutServiceTest {
     @Test
     void prefillWorkout_whenWorkoutExistsForTodayButPlanEmpty_returnsEmptyBodyPart() {
         LocalDate today = LocalDate.now();
-        when(workoutRepository.existsByWorkoutDate(today)).thenReturn(true);
+        when(workoutRepository.existsByWorkoutDateAndUser_Id(today, USER_ID)).thenReturn(true);
 
         Workout todayW = new Workout();
         todayW.setId(5L);
         todayW.setWorkoutDate(today);
-        when(workoutRepository.findByWorkoutDate(today)).thenReturn(Optional.of(todayW));
+        when(workoutRepository.findByWorkoutDateAndUser_Id(today, USER_ID)).thenReturn(Optional.of(todayW));
 
-        WorkoutPrefillDto result = workoutService.prefillWorkout();
+        WorkoutPrefillDto result = workoutService.prefillWorkout(USER_ID);
         assertThat(result.bodyPart()).isEmpty();
 
-        verify(workoutRepository).existsByWorkoutDate(today);
-        verify(workoutRepository).findByWorkoutDate(today);
+        verify(workoutRepository).existsByWorkoutDateAndUser_Id(today, USER_ID);
+        verify(workoutRepository).findByWorkoutDateAndUser_Id(today, USER_ID);
         verifyNoInteractions(workoutFactory, workoutSetRepository);
     }
 
@@ -358,19 +373,19 @@ class WorkoutServiceTest {
 
         previous.getSets().addAll(List.of(s3, s1, s2));
 
-        when(workoutRepository.existsByWorkoutDate(today)).thenReturn(false);
-        when(workoutRepository.findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(today))
+        when(workoutRepository.existsByWorkoutDateAndUser_Id(today, USER_ID)).thenReturn(false);
+        when(workoutRepository.findFirstByUser_IdAndWorkoutDateLessThanOrderByWorkoutDateDesc(USER_ID, today))
                 .thenReturn(Optional.of(previous));
 
-        WorkoutPrefillDto result = workoutService.prefillWorkout();
+        WorkoutPrefillDto result = workoutService.prefillWorkout(USER_ID);
 
         assertThat(result.bodyPart()).containsExactly(
                 new WorkoutExerciseViewDto("chest", "Bench Press", 0, new BigDecimal("60.0"), 8, WorkoutSetStatus.NEXT),
                 new WorkoutExerciseViewDto("chest", "Bench Press", 1, new BigDecimal("65.0"), 6, WorkoutSetStatus.PLANNED),
                 new WorkoutExerciseViewDto("back", "Pull-ups", 2, null, 10, WorkoutSetStatus.PLANNED));
 
-        verify(workoutRepository).existsByWorkoutDate(today);
-        verify(workoutRepository).findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(today);
+        verify(workoutRepository).existsByWorkoutDateAndUser_Id(today, USER_ID);
+        verify(workoutRepository).findFirstByUser_IdAndWorkoutDateLessThanOrderByWorkoutDateDesc(USER_ID, today);
         verifyNoInteractions(workoutFactory, workoutSetRepository);
         verifyNoMoreInteractions(workoutRepository);
     }
@@ -378,15 +393,15 @@ class WorkoutServiceTest {
     @Test
     void prefillWorkout_whenNoWorkoutTodayAndRepositoryFindsNoEarlierWorkout_returnsEmptyBodyPartList() {
         LocalDate today = LocalDate.now();
-        when(workoutRepository.existsByWorkoutDate(today)).thenReturn(false);
-        when(workoutRepository.findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(today))
+        when(workoutRepository.existsByWorkoutDateAndUser_Id(today, USER_ID)).thenReturn(false);
+        when(workoutRepository.findFirstByUser_IdAndWorkoutDateLessThanOrderByWorkoutDateDesc(USER_ID, today))
                 .thenReturn(Optional.empty());
 
-        WorkoutPrefillDto result = workoutService.prefillWorkout();
+        WorkoutPrefillDto result = workoutService.prefillWorkout(USER_ID);
         assertThat(result.bodyPart()).isEmpty();
 
-        verify(workoutRepository).existsByWorkoutDate(today);
-        verify(workoutRepository).findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(today);
+        verify(workoutRepository).existsByWorkoutDateAndUser_Id(today, USER_ID);
+        verify(workoutRepository).findFirstByUser_IdAndWorkoutDateLessThanOrderByWorkoutDateDesc(USER_ID, today);
         verifyNoInteractions(workoutFactory, workoutSetRepository);
         verifyNoMoreInteractions(workoutRepository);
     }
@@ -399,15 +414,15 @@ class WorkoutServiceTest {
         shell.setId(1L);
         shell.setWorkoutDate(today.minusDays(3));
 
-        when(workoutRepository.existsByWorkoutDate(today)).thenReturn(false);
-        when(workoutRepository.findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(today))
+        when(workoutRepository.existsByWorkoutDateAndUser_Id(today, USER_ID)).thenReturn(false);
+        when(workoutRepository.findFirstByUser_IdAndWorkoutDateLessThanOrderByWorkoutDateDesc(USER_ID, today))
                 .thenReturn(Optional.of(shell));
 
-        WorkoutPrefillDto result = workoutService.prefillWorkout();
+        WorkoutPrefillDto result = workoutService.prefillWorkout(USER_ID);
         assertThat(result.bodyPart()).isEmpty();
 
-        verify(workoutRepository).existsByWorkoutDate(today);
-        verify(workoutRepository).findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(today);
+        verify(workoutRepository).existsByWorkoutDateAndUser_Id(today, USER_ID);
+        verify(workoutRepository).findFirstByUser_IdAndWorkoutDateLessThanOrderByWorkoutDateDesc(USER_ID, today);
         verifyNoInteractions(workoutFactory, workoutSetRepository);
         verifyNoMoreInteractions(workoutRepository);
     }
@@ -424,16 +439,16 @@ class WorkoutServiceTest {
         ));
 
         when(workoutFactory.createWorkout()).thenReturn(new Workout());
-        when(workoutRepository.findByWorkoutDate(today)).thenReturn(Optional.empty());
+        when(workoutRepository.findByWorkoutDateAndUser_Id(today, USER_ID)).thenReturn(Optional.empty());
         when(workoutRepository.save(any(Workout.class))).thenAnswer(invocation -> {
             Workout w = invocation.getArgument(0);
             w.setId(123L);
             return w;
         });
 
-        workoutService.createWorkout(request);
+        workoutService.createWorkout(USER_ID, request);
 
         verify(workoutSetRepository, times(1)).saveAll(anyList());
-        verify(workoutRepository, never()).findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(any());
+        verify(workoutRepository, never()).findFirstByUser_IdAndWorkoutDateLessThanOrderByWorkoutDateDesc(any(), any());
     }
 }

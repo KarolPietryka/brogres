@@ -30,8 +30,8 @@ public class WorkoutGraphService {
      * is treated as zero.
      */
     @Transactional(readOnly = true)
-    public List<GraphVolumePointDto> graphVolumePoints() {
-        List<Workout> chronological = workoutRepository.findAllByOrderByWorkoutDateAsc();
+    public List<GraphVolumePointDto> graphVolumePoints(Long userId) {
+        List<Workout> chronological = workoutRepository.findAllByUser_IdOrderByWorkoutDateAsc(userId);
         if (chronological.isEmpty()) {
             return List.of();
         }

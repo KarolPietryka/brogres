@@ -25,6 +25,10 @@ public class Workout extends Auditable {
     @Column(nullable = false)
     private LocalDate workoutDate;
 
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private AppUser user;
+
     @JsonIgnore
     @ToString.Exclude
     @OneToMany(mappedBy = "workout", fetch = FetchType.LAZY)

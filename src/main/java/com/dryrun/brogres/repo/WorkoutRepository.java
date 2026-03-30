@@ -11,16 +11,16 @@ import java.util.Optional;
 public interface WorkoutRepository extends JpaRepository<Workout, Long> {
 
     @EntityGraph(attributePaths = "sets")
-    Optional<Workout> findByWorkoutDate(LocalDate workoutDate);
+    Optional<Workout> findByWorkoutDateAndUser_Id(LocalDate workoutDate, Long userId);
 
-    boolean existsByWorkoutDate(LocalDate workoutDate);
-
-    @EntityGraph(attributePaths = "sets")
-    Optional<Workout> findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(LocalDate date);
+    boolean existsByWorkoutDateAndUser_Id(LocalDate workoutDate, Long userId);
 
     @EntityGraph(attributePaths = "sets")
-    List<Workout> findAllByOrderByWorkoutDateDesc();
+    Optional<Workout> findFirstByUser_IdAndWorkoutDateLessThanOrderByWorkoutDateDesc(Long userId, LocalDate date);
 
     @EntityGraph(attributePaths = "sets")
-    List<Workout> findAllByOrderByWorkoutDateAsc();
+    List<Workout> findAllByUser_IdOrderByWorkoutDateDesc(Long userId);
+
+    @EntityGraph(attributePaths = "sets")
+    List<Workout> findAllByUser_IdOrderByWorkoutDateAsc(Long userId);
 }

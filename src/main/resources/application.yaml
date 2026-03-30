@@ -1,6 +1,11 @@
 server:
   port: ${PORT:8080}
 
+brogres:
+  security:
+    jwt-secret: ${JWT_SECRET:brogres-dev-secret-key-min-32-chars-long!!}
+    jwt-expiration-ms: ${JWT_EXPIRATION_MS:604800000}
+
 spring:
   application:
     name: brogres

@@ -4,6 +4,7 @@ import com.dryrun.brogres.data.Workout;
 import com.dryrun.brogres.data.WorkoutResponseDtos.WorkoutPrefillDto;
 import com.dryrun.brogres.data.WorkoutResponseDtos.WorkoutSummaryDto;
 import com.dryrun.brogres.data.WorkoutSubmitRequestDto;
+import com.dryrun.brogres.security.SecurityUtils;
 import com.dryrun.brogres.service.ExerciseCatalogService;
 import com.dryrun.brogres.service.WorkoutService;
 import jakarta.validation.Valid;
@@ -28,12 +29,12 @@ public class WorkoutController {
 
     @GetMapping
     public List<WorkoutSummaryDto> listWorkouts() {
-        return workoutService.listWorkouts();
+        return workoutService.listWorkouts(SecurityUtils.requireUserId());
     }
 
     @PostMapping
     public Workout createWorkout(@Valid @RequestBody WorkoutSubmitRequestDto request) {
-        return workoutService.createWorkout(request);
+        return workoutService.createWorkout(SecurityUtils.requireUserId(), request);
     }
 
     /**
@@ -41,7 +42,7 @@ public class WorkoutController {
      */
     @GetMapping("/prefill")
     public WorkoutPrefillDto prefillWorkout() {
-        return workoutService.prefillWorkout();
+        return workoutService.prefillWorkout(SecurityUtils.requireUserId());
     }
 
     // Nowy endpoint: dodaje pojedyncze ćwiczenie do istniejącego Workout

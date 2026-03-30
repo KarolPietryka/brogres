@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                                http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- Dev only: same dates as 005-dev-focus-series. Creates kapiet and assigns those seed workouts from demo → kapiet. -->
+    <changeSet id="008-kapiet-user-for-dev-seed" author="brogres" context="dev">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">SELECT COUNT(*) FROM app_user WHERE LOWER(nick) = 'kapiet'</sqlCheck>
+        </preConditions>
+        <insert tableName="app_user">
+            <column name="nick" value="kapiet"/>
+            <column name="password_plain" value="kapiet"/>
+        </insert>
+    </changeSet>
+
+    <changeSet id="008-reassign-dev-seed-workouts-demo-to-kapiet" author="brogres" context="dev">
+        <sql dbms="h2,postgresql" splitStatements="true" stripComments="true" endDelimiter=";">
+            UPDATE workout
+            SET user_id = (SELECT id FROM app_user WHERE LOWER(nick) = 'kapiet' LIMIT 1)
+            WHERE user_id = (SELECT id FROM app_user WHERE LOWER(nick) = 'demo' LIMIT 1)
+              AND workout_date IN (
+                DATE '2026-02-22',
+                DATE '2026-02-25',
+                DATE '2026-02-28',
+                DATE '2026-03-03',
+                DATE '2026-03-06',
+                DATE '2026-03-09',
+                DATE '2026-03-12',
+                DATE '2026-03-15',
+                DATE '2026-03-18',
+                DATE '2026-03-22',
+                DATE '2026-03-29'
+              );
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

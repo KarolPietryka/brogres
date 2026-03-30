@@ -33,9 +33,9 @@ class WorkoutGraphServiceTest {
      */
     @Test
     void graphVolumePoints_whenNoWorkouts_returnsEmptyList() {
-        when(workoutRepository.findAllByOrderByWorkoutDateAsc()).thenReturn(List.of());
+        when(workoutRepository.findAllByUser_IdOrderByWorkoutDateAsc(1L)).thenReturn(List.of());
 
-        assertThat(workoutGraphService.graphVolumePoints()).isEmpty();
+        assertThat(workoutGraphService.graphVolumePoints(1L)).isEmpty();
     }
 
     /**
@@ -55,9 +55,9 @@ class WorkoutGraphServiceTest {
                 set("chest", 5, "40", WorkoutSetStatus.DONE),
                 set("chest", 3, "40", WorkoutSetStatus.DONE),
                 set("back", 1, "20", WorkoutSetStatus.DONE));
-        when(workoutRepository.findAllByOrderByWorkoutDateAsc()).thenReturn(List.of(w1, w2));
+        when(workoutRepository.findAllByUser_IdOrderByWorkoutDateAsc(1L)).thenReturn(List.of(w1, w2));
 
-        List<GraphVolumePointDto> points = workoutGraphService.graphVolumePoints();
+        List<GraphVolumePointDto> points = workoutGraphService.graphVolumePoints(1L);
 
         assertThat(points).hasSize(2);
         assertThat(points.get(0).workoutDay()).isEqualTo(d1);
@@ -79,9 +79,9 @@ class WorkoutGraphServiceTest {
                 legsDay,
                 set("legs", 8, "100", WorkoutSetStatus.DONE),
                 set("chest", 2, "30", WorkoutSetStatus.DONE));
-        when(workoutRepository.findAllByOrderByWorkoutDateAsc()).thenReturn(List.of(chestFocus, legsFocus));
+        when(workoutRepository.findAllByUser_IdOrderByWorkoutDateAsc(1L)).thenReturn(List.of(chestFocus, legsFocus));
 
-        List<GraphVolumePointDto> points = workoutGraphService.graphVolumePoints();
+        List<GraphVolumePointDto> points = workoutGraphService.graphVolumePoints(1L);
 
         assertThat(points).hasSize(1);
         assertThat(points.get(0).workoutDay()).isEqualTo(legsDay);

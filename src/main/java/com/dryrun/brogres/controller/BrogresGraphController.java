@@ -1,6 +1,7 @@
 package com.dryrun.brogres.controller;
 
 import com.dryrun.brogres.data.WorkoutResponseDtos.GraphVolumePointDto;
+import com.dryrun.brogres.security.SecurityUtils;
 import com.dryrun.brogres.service.WorkoutGraphService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,6 +19,6 @@ public class BrogresGraphController {
 
     @GetMapping("/graph")
     public List<GraphVolumePointDto> graphVolume() {
-        return workoutGraphService.graphVolumePoints();
+        return workoutGraphService.graphVolumePoints(SecurityUtils.requireUserId());
     }
 }

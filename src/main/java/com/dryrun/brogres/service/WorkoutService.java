@@ -8,6 +8,8 @@ import com.dryrun.brogres.data.WorkoutSubmitRequestDto;
 import com.dryrun.brogres.data.WorkoutSet;
 import com.dryrun.brogres.data.WorkoutSetStatus;
 import com.dryrun.brogres.mapper.WorkoutSummaryMapper;
+import com.dryrun.brogres.data.AppUser;
+import com.dryrun.brogres.repo.AppUserRepository;
 import com.dryrun.brogres.repo.WorkoutRepository;
 import com.dryrun.brogres.repo.WorkoutSetRepository;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,7 @@ import java.util.Optional;
 public class WorkoutService {
 
     private final WorkoutFactory workoutFactory;
+    private final AppUserRepository appUserRepository;
     private final WorkoutRepository workoutRepository;
     private final WorkoutSetRepository workoutSetRepository;
     private final WorkoutSummaryMapper workoutSummaryMapper;
@@ -36,10 +39,11 @@ public class WorkoutService {
      * (the “current” set was just completed).
      */
     @Transactional
-    public Workout createWorkout(WorkoutSubmitRequestDto request) {
+    public Workout createWorkout(Long userId, WorkoutSubmitRequestDto request) {
         LocalDate today = LocalDate.now();
+        AppUser user = appUserRepository.findById(userId).orElseThrow();
 
-        Optional<Workout> existing = workoutRepository.findByWorkoutDate(today);
+        Optional<Workout> existing = workoutRepository.findByWorkoutDateAndUser_Id(today, userId);
         Workout workout;
         if (existing.isPresent()) {
             workout = existing.get();
@@ -48,6 +52,7 @@ public class WorkoutService {
         } else {
             workout = workoutFactory.createWorkout();
             workout.setWorkoutDate(today);
+            workout.setUser(user);
             workout = workoutRepository.save(workout);
         }
 
@@ -83,12 +88,12 @@ public class WorkoutService {
     }
 
     @Transactional(readOnly = true)
-    public WorkoutPrefillDto prefillWorkout() {
+    public WorkoutPrefillDto prefillWorkout(Long userId) {
         LocalDate today = LocalDate.now();
 
-        boolean hasTodayWorkout = workoutRepository.existsByWorkoutDate(today);
+        boolean hasTodayWorkout = workoutRepository.existsByWorkoutDateAndUser_Id(today, userId);
         if (hasTodayWorkout) {
-            Optional<Workout> todayWorkoutOpt = workoutRepository.findByWorkoutDate(today);
+            Optional<Workout> todayWorkoutOpt = workoutRepository.findByWorkoutDateAndUser_Id(today, userId);
             if (todayWorkoutOpt.isEmpty()) {
                 return WorkoutPrefillDto.empty();
             }
@@ -101,7 +106,7 @@ public class WorkoutService {
         }
 
         Optional<Workout> previousWorkoutOpt =
-                workoutRepository.findFirstByWorkoutDateLessThanOrderByWorkoutDateDesc(today);
+                workoutRepository.findFirstByUser_IdAndWorkoutDateLessThanOrderByWorkoutDateDesc(userId, today);
         if (previousWorkoutOpt.isEmpty()) {
             return WorkoutPrefillDto.empty();
         }
@@ -173,8 +178,8 @@ public class WorkoutService {
     }
 
     @Transactional(readOnly = true)
-    public List<WorkoutSummaryDto> listWorkouts() {
-        return workoutRepository.findAllByOrderByWorkoutDateDesc().stream()
+    public List<WorkoutSummaryDto> listWorkouts(Long userId) {
+        return workoutRepository.findAllByUser_IdOrderByWorkoutDateDesc(userId).stream()
                 .map(workoutSummaryMapper::toSummary)
                 .toList();
     }

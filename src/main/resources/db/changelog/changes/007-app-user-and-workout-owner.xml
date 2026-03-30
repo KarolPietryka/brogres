@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                                http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- Prototype: plain password column; workouts scoped per app_user. Existing rows attach to demo user. -->
+    <changeSet id="007-app-user-table" author="brogres">
+        <createTable tableName="app_user">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="nick" type="varchar(64)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="password_plain" type="varchar(512)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="007-demo-user" author="brogres">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">SELECT COUNT(*) FROM app_user WHERE nick = 'demo'</sqlCheck>
+        </preConditions>
+        <insert tableName="app_user">
+            <column name="nick" value="demo"/>
+            <column name="password_plain" value="demo"/>
+        </insert>
+    </changeSet>
+
+    <changeSet id="007-workout-user-id" author="brogres">
+        <addColumn tableName="workout">
+            <column name="user_id" type="bigint"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="007-backfill-workout-user" author="brogres">
+        <sql dbms="h2,postgresql" splitStatements="true" stripComments="true" endDelimiter=";">
+            UPDATE workout SET user_id = (SELECT id FROM app_user WHERE nick = 'demo') WHERE user_id IS NULL;
+        </sql>
+    </changeSet>
+
+    <changeSet id="007-workout-user-not-null-fk" author="brogres">
+        <addNotNullConstraint tableName="workout" columnName="user_id" columnDataType="bigint"/>
+        <addForeignKeyConstraint baseTableName="workout" baseColumnNames="user_id"
+                                 constraintName="fk_workout_app_user"
+                                 referencedTableName="app_user" referencedColumnNames="id"/>
+    </changeSet>
+
+</databaseChangeLog>

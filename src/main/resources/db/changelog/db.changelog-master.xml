@@ -12,5 +12,7 @@ http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
     <include file="db/changelog/changes/004-remove-legacy-mock-2026-03-27.xml"/>
     <include file="db/changelog/changes/005-dev-focus-series-feb-mar-2026.xml"/>
     <include file="db/changelog/changes/006-drop-dev-mock-2026-03-20.xml"/>
+    <include file="db/changelog/changes/007-app-user-and-workout-owner.xml"/>
+    <include file="db/changelog/changes/008-dev-seed-workouts-owner-kapiet.xml"/>
 
 </databaseChangeLog>
