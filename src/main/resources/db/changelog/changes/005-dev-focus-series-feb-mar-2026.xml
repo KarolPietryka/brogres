@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                                http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- Dev: Ramiona ×2, Nogi ×3, Klata ×6 — daty 2026-02-22 … 2026-03-29 (po 21.02, do 29.03). Nie edytuj 003 po wdrożeniu na prod. -->
+    <changeSet id="005-dev-focus-series-feb-mar-2026" author="brogres" context="dev">
+        <sql dbms="h2,postgresql" splitStatements="true" stripComments="true" endDelimiter=";">
+
+            <!-- 2026-02-22 — Ramiona -->
+            INSERT INTO workout (workout_date, created_by, modified_by, created_on, modified_on)
+            SELECT DATE '2026-02-22', NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+            WHERE NOT EXISTS (SELECT 1 FROM workout WHERE workout_date = DATE '2026-02-22');
+            INSERT INTO workout_set (exercise, repetitions, body_part, weight, line_order, workout_id, status)
+            SELECT v.exercise, v.repetitions, v.body_part, v.weight, v.line_order, w.id, 'DONE'
+            FROM workout w
+            CROSS JOIN (VALUES
+                ('Hantle curl', 12, 'arms', 12.0, 0),
+                ('Hantle curl', 10, 'arms', 14.0, 1),
+                ('Prostowanie na maszynie', 12, 'arms', 22.5, 2)
+            ) AS v(exercise, repetitions, body_part, weight, line_order)
+            WHERE w.workout_date = DATE '2026-02-22'
+              AND NOT EXISTS (SELECT 1 FROM workout_set s WHERE s.workout_id = w.id);
+
+            <!-- 2026-02-25 — Ramiona -->
+            INSERT INTO workout (workout_date, created_by, modified_by, created_on, modified_on)
+            SELECT DATE '2026-02-25', NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+            WHERE NOT EXISTS (SELECT 1 FROM workout WHERE workout_date = DATE '2026-02-25');
+            INSERT INTO workout_set (exercise, repetitions, body_part, weight, line_order, workout_id, status)
+            SELECT v.exercise, v.repetitions, v.body_part, v.weight, v.line_order, w.id, 'DONE'
+            FROM workout w
+            CROSS JOIN (VALUES
+                ('Chin Up', 10, 'arms', NULL, 0),
+                ('Chin Up', 8, 'arms', NULL, 1),
+                ('Hantle curl', 10, 'arms', 14.0, 2)
+            ) AS v(exercise, repetitions, body_part, weight, line_order)
+            WHERE w.workout_date = DATE '2026-02-25'
+              AND NOT EXISTS (SELECT 1 FROM workout_set s WHERE s.workout_id = w.id);
+
+            <!-- 2026-02-28 — Nogi -->
+            INSERT INTO workout (workout_date, created_by, modified_by, created_on, modified_on)
+            SELECT DATE '2026-02-28', NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+            WHERE NOT EXISTS (SELECT 1 FROM workout WHERE workout_date = DATE '2026-02-28');
+            INSERT INTO workout_set (exercise, repetitions, body_part, weight, line_order, workout_id, status)
+            SELECT v.exercise, v.repetitions, v.body_part, v.weight, v.line_order, w.id, 'DONE'
+            FROM workout w
+            CROSS JOIN (VALUES
+                ('Squat', 8, 'legs', 70.0, 0),
+                ('Squat', 8, 'legs', 75.0, 1)
+            ) AS v(exercise, repetitions, body_part, weight, line_order)
+            WHERE w.workout_date = DATE '2026-02-28'
+              AND NOT EXISTS (SELECT 1 FROM workout_set s WHERE s.workout_id = w.id);
+
+            <!-- 2026-03-03 — Nogi -->
+            INSERT INTO workout (workout_date, created_by, modified_by, created_on, modified_on)
+            SELECT DATE '2026-03-03', NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+            WHERE NOT EXISTS (SELECT 1 FROM workout WHERE workout_date = DATE '2026-03-03');
+            INSERT INTO workout_set (exercise, repetitions, body_part, weight, line_order, workout_id, status)
+            SELECT v.exercise, v.repetitions, v.body_part, v.weight, v.line_order, w.id, 'DONE'
+            FROM workout w
+            CROSS JOIN (VALUES
+                ('Squat na maszynie', 10, 'legs', 65.0, 0),
+                ('Squat na maszynie', 10, 'legs', 70.0, 1)
+            ) AS v(exercise, repetitions, body_part, weight, line_order)
+            WHERE w.workout_date = DATE '2026-03-03'
+              AND NOT EXISTS (SELECT 1 FROM workout_set s WHERE s.workout_id = w.id);
+
+            <!-- 2026-03-06 — Nogi -->
+            INSERT INTO workout (workout_date, created_by, modified_by, created_on, modified_on)
+            SELECT DATE '2026-03-06', NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+            WHERE NOT EXISTS (SELECT 1 FROM workout WHERE workout_date = DATE '2026-03-06');
+            INSERT INTO workout_set (exercise, repetitions, body_part, weight, line_order, workout_id, status)
+            SELECT v.exercise, v.repetitions, v.body_part, v.weight, v.line_order, w.id, 'DONE'
+            FROM workout w
+            CROSS JOIN (VALUES
+                ('Squat', 6, 'legs', 80.0, 0),
+                ('Squat na maszynie', 8, 'legs', 75.0, 1),
+                ('Squat', 6, 'legs', 82.5, 2)
+            ) AS v(exercise, repetitions, body_part, weight, line_order)
+            WHERE w.workout_date = DATE '2026-03-06'
+              AND NOT EXISTS (SELECT 1 FROM workout_set s WHERE s.workout_id = w.id);
+
+            <!-- 2026-03-09 — Klata -->
+            INSERT INTO workout (workout_date, created_by, modified_by, created_on, modified_on)
+            SELECT DATE '2026-03-09', NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+            WHERE NOT EXISTS (SELECT 1 FROM workout WHERE workout_date = DATE '2026-03-09');
+            INSERT INTO workout_set (exercise, repetitions, body_part, weight, line_order, workout_id, status)
+            SELECT v.exercise, v.repetitions, v.body_part, v.weight, v.line_order, w.id, 'DONE'
+            FROM workout w
+            CROSS JOIN (VALUES
+                ('Bench Press', 8, 'chest', 55.0, 0),
+                ('Bench Press', 8, 'chest', 57.5, 1)
+            ) AS v(exercise, repetitions, body_part, weight, line_order)
+            WHERE w.workout_date = DATE '2026-03-09'
+              AND NOT EXISTS (SELECT 1 FROM workout_set s WHERE s.workout_id = w.id);
+
+            <!-- 2026-03-12 — Klata -->
+            INSERT INTO workout (workout_date, created_by, modified_by, created_on, modified_on)
+            SELECT DATE '2026-03-12', NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+            WHERE NOT EXISTS (SELECT 1 FROM workout WHERE workout_date = DATE '2026-03-12');
+            INSERT INTO workout_set (exercise, repetitions, body_part, weight, line_order, workout_id, status)
+            SELECT v.exercise, v.repetitions, v.body_part, v.weight, v.line_order, w.id, 'DONE'
+            FROM workout w
+            CROSS JOIN (VALUES
+                ('Incline Bench Press', 8, 'chest', 35.0, 0),
+                ('Incline Bench Press', 8, 'chest', 37.5, 1)
+            ) AS v(exercise, repetitions, body_part, weight, line_order)
+            WHERE w.workout_date = DATE '2026-03-12'
+              AND NOT EXISTS (SELECT 1 FROM workout_set s WHERE s.workout_id = w.id);
+
+            <!-- 2026-03-15 — Klata -->
+            INSERT INTO workout (workout_date, created_by, modified_by, created_on, modified_on)
+            SELECT DATE '2026-03-15', NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+            WHERE NOT EXISTS (SELECT 1 FROM workout WHERE workout_date = DATE '2026-03-15');
+            INSERT INTO workout_set (exercise, repetitions, body_part, weight, line_order, workout_id, status)
+            SELECT v.exercise, v.repetitions, v.body_part, v.weight, v.line_order, w.id, 'DONE'
+            FROM workout w
+            CROSS JOIN (VALUES
+                ('Bench Press', 6, 'chest', 60.0, 0),
+                ('Dip', 10, 'chest', NULL, 1)
+            ) AS v(exercise, repetitions, body_part, weight, line_order)
+            WHERE w.workout_date = DATE '2026-03-15'
+              AND NOT EXISTS (SELECT 1 FROM workout_set s WHERE s.workout_id = w.id);
+
+            <!-- 2026-03-18 — Klata -->
+            INSERT INTO workout (workout_date, created_by, modified_by, created_on, modified_on)
+            SELECT DATE '2026-03-18', NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+            WHERE NOT EXISTS (SELECT 1 FROM workout WHERE workout_date = DATE '2026-03-18');
+            INSERT INTO workout_set (exercise, repetitions, body_part, weight, line_order, workout_id, status)
+            SELECT v.exercise, v.repetitions, v.body_part, v.weight, v.line_order, w.id, 'DONE'
+            FROM workout w
+            CROSS JOIN (VALUES
+                ('Butterfly', 12, 'chest', 12.0, 0),
+                ('Butterfly', 12, 'chest', 14.0, 1)
+            ) AS v(exercise, repetitions, body_part, weight, line_order)
+            WHERE w.workout_date = DATE '2026-03-18'
+              AND NOT EXISTS (SELECT 1 FROM workout_set s WHERE s.workout_id = w.id);
+
+            <!-- 2026-03-22 — Klata -->
+            INSERT INTO workout (workout_date, created_by, modified_by, created_on, modified_on)
+            SELECT DATE '2026-03-22', NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+            WHERE NOT EXISTS (SELECT 1 FROM workout WHERE workout_date = DATE '2026-03-22');
+            INSERT INTO workout_set (exercise, repetitions, body_part, weight, line_order, workout_id, status)
+            SELECT v.exercise, v.repetitions, v.body_part, v.weight, v.line_order, w.id, 'DONE'
+            FROM workout w
+            CROSS JOIN (VALUES
+                ('Bench Press', 8, 'chest', 60.0, 0),
+                ('Bench Press', 6, 'chest', 62.5, 1)
+            ) AS v(exercise, repetitions, body_part, weight, line_order)
+            WHERE w.workout_date = DATE '2026-03-22'
+              AND NOT EXISTS (SELECT 1 FROM workout_set s WHERE s.workout_id = w.id);
+
+            <!-- 2026-03-29 — Klata -->
+            INSERT INTO workout (workout_date, created_by, modified_by, created_on, modified_on)
+            SELECT DATE '2026-03-29', NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+            WHERE NOT EXISTS (SELECT 1 FROM workout WHERE workout_date = DATE '2026-03-29');
+            INSERT INTO workout_set (exercise, repetitions, body_part, weight, line_order, workout_id, status)
+            SELECT v.exercise, v.repetitions, v.body_part, v.weight, v.line_order, w.id, 'DONE'
+            FROM workout w
+            CROSS JOIN (VALUES
+                ('Incline Bench Press', 6, 'chest', 40.0, 0),
+                ('Bench Press', 5, 'chest', 65.0, 1)
+            ) AS v(exercise, repetitions, body_part, weight, line_order)
+            WHERE w.workout_date = DATE '2026-03-29'
+              AND NOT EXISTS (SELECT 1 FROM workout_set s WHERE s.workout_id = w.id);
+
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>
