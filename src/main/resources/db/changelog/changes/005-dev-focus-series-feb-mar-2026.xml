@@ -5,11 +5,11 @@
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
                                 http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
-    <!-- Dev: Ramiona ×2, Nogi ×3, Klata ×6 — daty 2026-02-22 … 2026-03-29 (po 21.02, do 29.03). Nie edytuj 003 po wdrożeniu na prod. -->
+    <!-- Dev: Arms ×2, Legs ×3, Chest ×6 — dates 2026-02-22 … 2026-03-29. Do not edit 003 after prod deploy. -->
     <changeSet id="005-dev-focus-series-feb-mar-2026" author="brogres" context="dev">
         <sql dbms="h2,postgresql" splitStatements="true" stripComments="true" endDelimiter=";">
 
-            <!-- 2026-02-22 — Ramiona -->
+            <!-- 2026-02-22 — Arms -->
             INSERT INTO workout (workout_date, created_by, modified_by, created_on, modified_on)
             SELECT DATE '2026-02-22', NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
             WHERE NOT EXISTS (SELECT 1 FROM workout WHERE workout_date = DATE '2026-02-22');
@@ -24,7 +24,7 @@
             WHERE w.workout_date = DATE '2026-02-22'
               AND NOT EXISTS (SELECT 1 FROM workout_set s WHERE s.workout_id = w.id);
 
-            <!-- 2026-02-25 — Ramiona -->
+            <!-- 2026-02-25 — Arms -->
             INSERT INTO workout (workout_date, created_by, modified_by, created_on, modified_on)
             SELECT DATE '2026-02-25', NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
             WHERE NOT EXISTS (SELECT 1 FROM workout WHERE workout_date = DATE '2026-02-25');
@@ -39,7 +39,7 @@
             WHERE w.workout_date = DATE '2026-02-25'
               AND NOT EXISTS (SELECT 1 FROM workout_set s WHERE s.workout_id = w.id);
 
-            <!-- 2026-02-28 — Nogi -->
+            <!-- 2026-02-28 — Legs -->
             INSERT INTO workout (workout_date, created_by, modified_by, created_on, modified_on)
             SELECT DATE '2026-02-28', NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
             WHERE NOT EXISTS (SELECT 1 FROM workout WHERE workout_date = DATE '2026-02-28');
@@ -53,7 +53,7 @@
             WHERE w.workout_date = DATE '2026-02-28'
               AND NOT EXISTS (SELECT 1 FROM workout_set s WHERE s.workout_id = w.id);
 
-            <!-- 2026-03-03 — Nogi -->
+            <!-- 2026-03-03 — Legs -->
             INSERT INTO workout (workout_date, created_by, modified_by, created_on, modified_on)
             SELECT DATE '2026-03-03', NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
             WHERE NOT EXISTS (SELECT 1 FROM workout WHERE workout_date = DATE '2026-03-03');
@@ -67,7 +67,7 @@
             WHERE w.workout_date = DATE '2026-03-03'
               AND NOT EXISTS (SELECT 1 FROM workout_set s WHERE s.workout_id = w.id);
 
-            <!-- 2026-03-06 — Nogi -->
+            <!-- 2026-03-06 — Legs -->
             INSERT INTO workout (workout_date, created_by, modified_by, created_on, modified_on)
             SELECT DATE '2026-03-06', NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
             WHERE NOT EXISTS (SELECT 1 FROM workout WHERE workout_date = DATE '2026-03-06');
@@ -82,7 +82,7 @@
             WHERE w.workout_date = DATE '2026-03-06'
               AND NOT EXISTS (SELECT 1 FROM workout_set s WHERE s.workout_id = w.id);
 
-            <!-- 2026-03-09 — Klata -->
+            <!-- 2026-03-09 — Chest -->
             INSERT INTO workout (workout_date, created_by, modified_by, created_on, modified_on)
             SELECT DATE '2026-03-09', NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
             WHERE NOT EXISTS (SELECT 1 FROM workout WHERE workout_date = DATE '2026-03-09');
@@ -96,7 +96,7 @@
             WHERE w.workout_date = DATE '2026-03-09'
               AND NOT EXISTS (SELECT 1 FROM workout_set s WHERE s.workout_id = w.id);
 
-            <!-- 2026-03-12 — Klata -->
+            <!-- 2026-03-12 — Chest -->
             INSERT INTO workout (workout_date, created_by, modified_by, created_on, modified_on)
             SELECT DATE '2026-03-12', NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
             WHERE NOT EXISTS (SELECT 1 FROM workout WHERE workout_date = DATE '2026-03-12');
@@ -110,7 +110,7 @@
             WHERE w.workout_date = DATE '2026-03-12'
               AND NOT EXISTS (SELECT 1 FROM workout_set s WHERE s.workout_id = w.id);
 
-            <!-- 2026-03-15 — Klata -->
+            <!-- 2026-03-15 — Chest -->
             INSERT INTO workout (workout_date, created_by, modified_by, created_on, modified_on)
             SELECT DATE '2026-03-15', NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
             WHERE NOT EXISTS (SELECT 1 FROM workout WHERE workout_date = DATE '2026-03-15');
@@ -124,7 +124,7 @@
             WHERE w.workout_date = DATE '2026-03-15'
               AND NOT EXISTS (SELECT 1 FROM workout_set s WHERE s.workout_id = w.id);
 
-            <!-- 2026-03-18 — Klata -->
+            <!-- 2026-03-18 — Chest -->
             INSERT INTO workout (workout_date, created_by, modified_by, created_on, modified_on)
             SELECT DATE '2026-03-18', NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
             WHERE NOT EXISTS (SELECT 1 FROM workout WHERE workout_date = DATE '2026-03-18');
@@ -138,7 +138,7 @@
             WHERE w.workout_date = DATE '2026-03-18'
               AND NOT EXISTS (SELECT 1 FROM workout_set s WHERE s.workout_id = w.id);
 
-            <!-- 2026-03-22 — Klata -->
+            <!-- 2026-03-22 — Chest -->
             INSERT INTO workout (workout_date, created_by, modified_by, created_on, modified_on)
             SELECT DATE '2026-03-22', NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
             WHERE NOT EXISTS (SELECT 1 FROM workout WHERE workout_date = DATE '2026-03-22');
@@ -152,7 +152,7 @@
             WHERE w.workout_date = DATE '2026-03-22'
               AND NOT EXISTS (SELECT 1 FROM workout_set s WHERE s.workout_id = w.id);
 
-            <!-- 2026-03-29 — Klata -->
+            <!-- 2026-03-29 — Chest -->
             INSERT INTO workout (workout_date, created_by, modified_by, created_on, modified_on)
             SELECT DATE '2026-03-29', NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
             WHERE NOT EXISTS (SELECT 1 FROM workout WHERE workout_date = DATE '2026-03-29');

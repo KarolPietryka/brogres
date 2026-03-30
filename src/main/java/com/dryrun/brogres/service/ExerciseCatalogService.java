@@ -9,14 +9,14 @@ import java.util.Map;
 @Service
 public class ExerciseCatalogService {
 
-    private static final List<String> GROUP_ORDER = List.of("Klata", "Plecy", "Nogi", "Ramiona", "Barki");
+    private static final List<String> GROUP_ORDER = List.of("Chest", "Back", "Legs", "Arms", "Shoulders");
 
     private static final Map<String, List<String>> BY_GROUP = Map.of(
-            "Klata", List.of("Butterfly", "Incline Bench Press", "Bench Press", "Dip"),
-            "Plecy", List.of("Pull Up", "Wiosłowanie ze sztangą", "Wiosłowanie na maszynie"),
-            "Nogi", List.of("Squat", "Squat na maszynie"),
-            "Ramiona", List.of("Chin Up", "Hantle curl", "Prostowanie ramienia na maszynie"),
-            "Barki", List.of("OHP sztanga", "OHP maszyna", "OHP hantle")
+            "Chest", List.of("Butterfly", "Incline Bench Press", "Bench Press", "Dip"),
+            "Back", List.of("Pull Up", "Wiosłowanie ze sztangą", "Wiosłowanie na maszynie"),
+            "Legs", List.of("Squat", "Squat na maszynie"),
+            "Arms", List.of("Chin Up", "Hantle curl", "Prostowanie ramienia na maszynie"),
+            "Shoulders", List.of("OHP sztanga", "OHP maszyna", "OHP hantle")
     );
 
     public Map<String, List<String>> exercisesByDisplayGroup() {
