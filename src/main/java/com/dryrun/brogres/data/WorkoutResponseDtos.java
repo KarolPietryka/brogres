@@ -40,4 +40,8 @@ public final class WorkoutResponseDtos {
             return new WorkoutPrefillDto(List.of());
         }
     }
+
+    /** GET /brogres/graph — one point per workout day in the current focus series (see {@code WorkoutGraphService}). */
+    public record GraphVolumePointDto(LocalDate workoutDay, BigDecimal volume) {
+    }
 }

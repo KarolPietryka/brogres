@@ -20,4 +20,7 @@ public interface WorkoutRepository extends JpaRepository<Workout, Long> {
 
     @EntityGraph(attributePaths = "sets")
     List<Workout> findAllByOrderByWorkoutDateDesc();
+
+    @EntityGraph(attributePaths = "sets")
+    List<Workout> findAllByOrderByWorkoutDateAsc();
 }

@@ -9,5 +9,6 @@ http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
     <include file="db/changelog/changes/001-initial-schema.xml"/>
     <include file="db/changelog/changes/002-workout-set-planned-to-status.xml"/>
     <include file="db/changelog/changes/003-mock-workout-2026-03-27.xml"/>
+    <include file="db/changelog/changes/004-remove-legacy-mock-2026-03-27.xml"/>
 
 </databaseChangeLog>
