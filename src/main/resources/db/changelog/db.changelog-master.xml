@@ -14,5 +14,6 @@ http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
     <include file="db/changelog/changes/006-drop-dev-mock-2026-03-20.xml"/>
     <include file="db/changelog/changes/007-app-user-and-workout-owner.xml"/>
     <include file="db/changelog/changes/008-dev-seed-workouts-owner-kapiet.xml"/>
+    <include file="db/changelog/changes/009-jungle-gym-bar-kapiet.xml"/>
 
 </databaseChangeLog>

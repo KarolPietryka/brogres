@@ -16,7 +16,7 @@ public class ExerciseCatalogService {
             "Back", List.of("Pull Up", "Wiosłowanie ze sztangą", "Wiosłowanie na maszynie"),
             "Legs", List.of("Squat", "Squat na maszynie"),
             "Arms", List.of("Chin Up", "Hantle curl", "Prostowanie ramienia na maszynie"),
-            "Shoulders", List.of("OHP sztanga", "OHP maszyna", "OHP hantle")
+            "Shoulders", List.of("OHP sztanga", "OHP maszyna", "OHP hantle", "Lateral Raise")
     );
 
     public Map<String, List<String>> exercisesByDisplayGroup() {

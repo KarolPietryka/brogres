@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                                http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- Dev: wipe all workouts for kapiet, then seed Jungle gym - Bar.csv (9 sessions, 3+3+2+3 sets). -->
+    <changeSet id="009-wipe-kapiet-workouts-jungle-bar-seed" author="brogres" context="dev">
+        <sql dbms="h2,postgresql" splitStatements="true" stripComments="true" endDelimiter=";">
+            DELETE FROM workout_set WHERE workout_id IN (
+                SELECT id FROM workout WHERE user_id = (SELECT id FROM app_user WHERE LOWER(nick) = 'kapiet')
+            );
+            DELETE FROM workout WHERE user_id = (SELECT id FROM app_user WHERE LOWER(nick) = 'kapiet');
+
+            INSERT INTO workout (workout_date, created_by, modified_by, created_on, modified_on, user_id)
+            SELECT DATE '2026-01-06', NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, u.id
+            FROM app_user u WHERE LOWER(u.nick) = 'kapiet' LIMIT 1;
+
+            INSERT INTO workout_set (exercise, repetitions, body_part, weight, line_order, workout_id, status)
+            SELECT v.exercise, v.repetitions, v.body_part, v.weight, v.line_order, w.id, 'DONE'
+            FROM workout w
+            JOIN app_user u ON u.id = w.user_id AND LOWER(u.nick) = 'kapiet'
+            CROSS JOIN (VALUES
+                ('OHP maszyna', 12, 'shoulders', 41.0, 0),
+                ('OHP maszyna', 9, 'shoulders', 41.0, 1),
+                ('OHP maszyna', 5, 'shoulders', 48.0, 2),
+                ('OHP hantle', 10, 'shoulders', 24.0, 3),
+                ('OHP hantle', 10, 'shoulders', 24.0, 4),
+                ('OHP hantle', 10, 'shoulders', 24.0, 5),
+                ('Lateral Raise', 5, 'shoulders', 34.0, 6),
+                ('Lateral Raise', 5, 'shoulders', 34.0, 7),
+                ('Incline Bench Press', 5, 'chest', 40.0, 8),
+                ('Incline Bench Press', 4, 'chest', 40.0, 9),
+                ('Incline Bench Press', 4, 'chest', 40.0, 10)
+            ) AS v(exercise, repetitions, body_part, weight, line_order)
+            WHERE w.workout_date = DATE '2026-01-06';
+
+            INSERT INTO workout (workout_date, created_by, modified_by, created_on, modified_on, user_id)
+            SELECT DATE '2026-01-10', NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, u.id
+            FROM app_user u WHERE LOWER(u.nick) = 'kapiet' LIMIT 1;
+
+            INSERT INTO workout_set (exercise, repetitions, body_part, weight, line_order, workout_id, status)
+            SELECT v.exercise, v.repetitions, v.body_part, v.weight, v.line_order, w.id, 'DONE'
+            FROM workout w
+            JOIN app_user u ON u.id = w.user_id AND LOWER(u.nick) = 'kapiet'
+            CROSS JOIN (VALUES
+                ('OHP maszyna', 13, 'shoulders', 41.0, 0),
+                ('OHP maszyna', 9, 'shoulders', 41.0, 1),
+                ('OHP maszyna', 6, 'shoulders', 48.0, 2),
+                ('OHP hantle', 9, 'shoulders', 24.0, 3),
+                ('OHP hantle', 10, 'shoulders', 24.0, 4),
+                ('OHP hantle', 10, 'shoulders', 24.0, 5),
+                ('Lateral Raise', 5, 'shoulders', 34.0, 6),
+                ('Lateral Raise', 5, 'shoulders', 34.0, 7),
+                ('Incline Bench Press', 7, 'chest', 40.0, 8),
+                ('Incline Bench Press', 5, 'chest', 40.0, 9),
+                ('Incline Bench Press', 4, 'chest', 40.0, 10)
+            ) AS v(exercise, repetitions, body_part, weight, line_order)
+            WHERE w.workout_date = DATE '2026-01-10';
+
+            INSERT INTO workout (workout_date, created_by, modified_by, created_on, modified_on, user_id)
+            SELECT DATE '2026-01-13', NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, u.id
+            FROM app_user u WHERE LOWER(u.nick) = 'kapiet' LIMIT 1;
+
+            INSERT INTO workout_set (exercise, repetitions, body_part, weight, line_order, workout_id, status)
+            SELECT v.exercise, v.repetitions, v.body_part, v.weight, v.line_order, w.id, 'DONE'
+            FROM workout w
+            JOIN app_user u ON u.id = w.user_id AND LOWER(u.nick) = 'kapiet'
+            CROSS JOIN (VALUES
+                ('OHP maszyna', 14, 'shoulders', 41.0, 0),
+                ('OHP maszyna', 9, 'shoulders', 41.0, 1),
+                ('OHP maszyna', 7, 'shoulders', 48.0, 2),
+                ('OHP hantle', 10, 'shoulders', 24.0, 3),
+                ('OHP hantle', 10, 'shoulders', 24.0, 4),
+                ('OHP hantle', 12, 'shoulders', 24.0, 5),
+                ('Lateral Raise', 6, 'shoulders', 34.0, 6),
+                ('Lateral Raise', 6, 'shoulders', 34.0, 7),
+                ('Incline Bench Press', 6, 'chest', 40.0, 8),
+                ('Incline Bench Press', 6, 'chest', 40.0, 9),
+                ('Incline Bench Press', 5, 'chest', 40.0, 10)
+            ) AS v(exercise, repetitions, body_part, weight, line_order)
+            WHERE w.workout_date = DATE '2026-01-13';
+
+            INSERT INTO workout (workout_date, created_by, modified_by, created_on, modified_on, user_id)
+            SELECT DATE '2026-01-15', NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, u.id
+            FROM app_user u WHERE LOWER(u.nick) = 'kapiet' LIMIT 1;
+
+            INSERT INTO workout_set (exercise, repetitions, body_part, weight, line_order, workout_id, status)
+            SELECT v.exercise, v.repetitions, v.body_part, v.weight, v.line_order, w.id, 'DONE'
+            FROM workout w
+            JOIN app_user u ON u.id = w.user_id AND LOWER(u.nick) = 'kapiet'
+            CROSS JOIN (VALUES
+                ('OHP maszyna', 12, 'shoulders', 48.0, 0),
+                ('OHP maszyna', 9, 'shoulders', 48.0, 1),
+                ('OHP maszyna', 5, 'shoulders', 55.0, 2),
+                ('OHP hantle', 8, 'shoulders', 30.0, 3),
+                ('OHP hantle', 9, 'shoulders', 30.0, 4),
+                ('OHP hantle', 10, 'shoulders', 30.0, 5),
+                ('Lateral Raise', 5, 'shoulders', 34.0, 6),
+                ('Lateral Raise', 5, 'shoulders', 34.0, 7),
+                ('Incline Bench Press', 5, 'chest', 40.0, 8),
+                ('Incline Bench Press', 5, 'chest', 40.0, 9),
+                ('Incline Bench Press', 5, 'chest', 40.0, 10)
+            ) AS v(exercise, repetitions, body_part, weight, line_order)
+            WHERE w.workout_date = DATE '2026-01-15';
+
+            INSERT INTO workout (workout_date, created_by, modified_by, created_on, modified_on, user_id)
+            SELECT DATE '2026-01-18', NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, u.id
+            FROM app_user u WHERE LOWER(u.nick) = 'kapiet' LIMIT 1;
+
+            INSERT INTO workout_set (exercise, repetitions, body_part, weight, line_order, workout_id, status)
+            SELECT v.exercise, v.repetitions, v.body_part, v.weight, v.line_order, w.id, 'DONE'
+            FROM workout w
+            JOIN app_user u ON u.id = w.user_id AND LOWER(u.nick) = 'kapiet'
+            CROSS JOIN (VALUES
+                ('OHP maszyna', 10, 'shoulders', 48.0, 0),
+                ('OHP maszyna', 8, 'shoulders', 48.0, 1),
+                ('OHP maszyna', 5, 'shoulders', 55.0, 2),
+                ('OHP hantle', 10, 'shoulders', 30.0, 3),
+                ('OHP hantle', 10, 'shoulders', 30.0, 4),
+                ('OHP hantle', 10, 'shoulders', 30.0, 5),
+                ('Lateral Raise', 6, 'shoulders', 34.0, 6),
+                ('Lateral Raise', 6, 'shoulders', 34.0, 7),
+                ('Incline Bench Press', 6, 'chest', 40.0, 8),
+                ('Incline Bench Press', 5, 'chest', 40.0, 9),
+                ('Incline Bench Press', 5, 'chest', 40.0, 10)
+            ) AS v(exercise, repetitions, body_part, weight, line_order)
+            WHERE w.workout_date = DATE '2026-01-18';
+
+            INSERT INTO workout (workout_date, created_by, modified_by, created_on, modified_on, user_id)
+            SELECT DATE '2026-01-25', NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, u.id
+            FROM app_user u WHERE LOWER(u.nick) = 'kapiet' LIMIT 1;
+
+            INSERT INTO workout_set (exercise, repetitions, body_part, weight, line_order, workout_id, status)
+            SELECT v.exercise, v.repetitions, v.body_part, v.weight, v.line_order, w.id, 'DONE'
+            FROM workout w
+            JOIN app_user u ON u.id = w.user_id AND LOWER(u.nick) = 'kapiet'
+            CROSS JOIN (VALUES
+                ('OHP maszyna', 13, 'shoulders', 48.0, 0),
+                ('OHP maszyna', 10, 'shoulders', 48.0, 1),
+                ('OHP maszyna', 4, 'shoulders', 55.0, 2),
+                ('OHP hantle', 10, 'shoulders', 30.0, 3),
+                ('OHP hantle', 10, 'shoulders', 30.0, 4),
+                ('OHP hantle', 11, 'shoulders', 30.0, 5),
+                ('Lateral Raise', 6, 'shoulders', 34.0, 6),
+                ('Lateral Raise', 7, 'shoulders', 34.0, 7),
+                ('Incline Bench Press', 5, 'chest', 40.0, 8),
+                ('Incline Bench Press', 5, 'chest', 40.0, 9),
+                ('Incline Bench Press', 5, 'chest', 40.0, 10)
+            ) AS v(exercise, repetitions, body_part, weight, line_order)
+            WHERE w.workout_date = DATE '2026-01-25';
+
+            INSERT INTO workout (workout_date, created_by, modified_by, created_on, modified_on, user_id)
+            SELECT DATE '2026-01-28', NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, u.id
+            FROM app_user u WHERE LOWER(u.nick) = 'kapiet' LIMIT 1;
+
+            INSERT INTO workout_set (exercise, repetitions, body_part, weight, line_order, workout_id, status)
+            SELECT v.exercise, v.repetitions, v.body_part, v.weight, v.line_order, w.id, 'DONE'
+            FROM workout w
+            JOIN app_user u ON u.id = w.user_id AND LOWER(u.nick) = 'kapiet'
+            CROSS JOIN (VALUES
+                ('OHP maszyna', 13, 'shoulders', 48.0, 0),
+                ('OHP maszyna', 10, 'shoulders', 48.0, 1),
+                ('OHP maszyna', 5, 'shoulders', 55.0, 2),
+                ('OHP hantle', 8, 'shoulders', 45.0, 3),
+                ('OHP hantle', 6, 'shoulders', 45.0, 4),
+                ('OHP hantle', 6, 'shoulders', 45.0, 5),
+                ('Lateral Raise', 6, 'shoulders', 34.0, 6),
+                ('Lateral Raise', 7, 'shoulders', 34.0, 7),
+                ('Incline Bench Press', 5, 'chest', 40.0, 8),
+                ('Incline Bench Press', 5, 'chest', 40.0, 9),
+                ('Incline Bench Press', 5, 'chest', 40.0, 10)
+            ) AS v(exercise, repetitions, body_part, weight, line_order)
+            WHERE w.workout_date = DATE '2026-01-28';
+
+            INSERT INTO workout (workout_date, created_by, modified_by, created_on, modified_on, user_id)
+            SELECT DATE '2026-02-04', NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, u.id
+            FROM app_user u WHERE LOWER(u.nick) = 'kapiet' LIMIT 1;
+
+            INSERT INTO workout_set (exercise, repetitions, body_part, weight, line_order, workout_id, status)
+            SELECT v.exercise, v.repetitions, v.body_part, v.weight, v.line_order, w.id, 'DONE'
+            FROM workout w
+            JOIN app_user u ON u.id = w.user_id AND LOWER(u.nick) = 'kapiet'
+            CROSS JOIN (VALUES
+                ('OHP maszyna', 13, 'shoulders', 48.0, 0),
+                ('OHP maszyna', 11, 'shoulders', 48.0, 1),
+                ('OHP maszyna', 6, 'shoulders', 55.0, 2),
+                ('OHP hantle', 6, 'shoulders', 45.0, 3),
+                ('OHP hantle', 7, 'shoulders', 45.0, 4),
+                ('OHP hantle', 8, 'shoulders', 45.0, 5),
+                ('Lateral Raise', 7, 'shoulders', 34.0, 6),
+                ('Lateral Raise', 8, 'shoulders', 34.0, 7),
+                ('Incline Bench Press', 5, 'chest', 40.0, 8),
+                ('Incline Bench Press', 6, 'chest', 40.0, 9),
+                ('Incline Bench Press', 6, 'chest', 40.0, 10)
+            ) AS v(exercise, repetitions, body_part, weight, line_order)
+            WHERE w.workout_date = DATE '2026-02-04';
+
+            INSERT INTO workout (workout_date, created_by, modified_by, created_on, modified_on, user_id)
+            SELECT DATE '2026-02-11', NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, u.id
+            FROM app_user u WHERE LOWER(u.nick) = 'kapiet' LIMIT 1;
+
+            INSERT INTO workout_set (exercise, repetitions, body_part, weight, line_order, workout_id, status)
+            SELECT v.exercise, v.repetitions, v.body_part, v.weight, v.line_order, w.id, 'DONE'
+            FROM workout w
+            JOIN app_user u ON u.id = w.user_id AND LOWER(u.nick) = 'kapiet'
+            CROSS JOIN (VALUES
+                ('OHP maszyna', 13, 'shoulders', 48.0, 0),
+                ('OHP maszyna', 10, 'shoulders', 48.0, 1),
+                ('OHP maszyna', 4, 'shoulders', 55.0, 2),
+                ('OHP hantle', 7, 'shoulders', 45.0, 3),
+                ('OHP hantle', 7, 'shoulders', 45.0, 4),
+                ('OHP hantle', 8, 'shoulders', 45.0, 5),
+                ('Lateral Raise', 7, 'shoulders', 34.0, 6),
+                ('Lateral Raise', 8, 'shoulders', 34.0, 7),
+                ('Incline Bench Press', 5, 'chest', 40.0, 8),
+                ('Incline Bench Press', 5, 'chest', 40.0, 9),
+                ('Incline Bench Press', 7, 'chest', 40.0, 10)
+            ) AS v(exercise, repetitions, body_part, weight, line_order)
+            WHERE w.workout_date = DATE '2026-02-11';
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>
