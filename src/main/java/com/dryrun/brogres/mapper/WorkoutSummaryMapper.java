@@ -1,8 +1,8 @@
 package com.dryrun.brogres.mapper;
 
 import com.dryrun.brogres.data.Workout;
-import com.dryrun.brogres.data.WorkoutResponseDtos.WorkoutExerciseViewDto;
-import com.dryrun.brogres.data.WorkoutResponseDtos.WorkoutSummaryDto;
+import com.dryrun.brogres.model.WorkoutResponseDtos.WorkoutExerciseViewDto;
+import com.dryrun.brogres.model.WorkoutResponseDtos.WorkoutSummaryDto;
 import com.dryrun.brogres.data.WorkoutSet;
 import com.dryrun.brogres.data.WorkoutSetStatus;
 import org.mapstruct.Mapper;

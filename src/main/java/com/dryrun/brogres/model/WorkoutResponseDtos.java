@@ -1,4 +1,6 @@
-package com.dryrun.brogres.data;
+package com.dryrun.brogres.model;
+
+import com.dryrun.brogres.data.WorkoutSetStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;

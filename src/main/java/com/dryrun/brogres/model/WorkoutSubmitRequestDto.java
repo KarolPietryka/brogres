@@ -1,5 +1,7 @@
-package com.dryrun.brogres.data;
+package com.dryrun.brogres.model;
 
+import com.dryrun.brogres.data.WorkoutSet;
+import com.dryrun.brogres.data.WorkoutSetStatus;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;

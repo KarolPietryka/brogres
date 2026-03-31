@@ -1,6 +1,6 @@
 package com.dryrun.brogres.controller;
 
-import com.dryrun.brogres.data.WorkoutResponseDtos.GraphVolumePointDto;
+import com.dryrun.brogres.model.WorkoutResponseDtos.GraphVolumePointDto;
 import com.dryrun.brogres.security.SecurityUtils;
 import com.dryrun.brogres.service.WorkoutGraphService;
 import lombok.RequiredArgsConstructor;

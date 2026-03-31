@@ -1,9 +1,9 @@
 package com.dryrun.brogres.controller;
 
 import com.dryrun.brogres.data.Workout;
-import com.dryrun.brogres.data.WorkoutResponseDtos.WorkoutPrefillDto;
-import com.dryrun.brogres.data.WorkoutResponseDtos.WorkoutSummaryDto;
-import com.dryrun.brogres.data.WorkoutSubmitRequestDto;
+import com.dryrun.brogres.model.WorkoutResponseDtos.WorkoutPrefillDto;
+import com.dryrun.brogres.model.WorkoutResponseDtos.WorkoutSummaryDto;
+import com.dryrun.brogres.model.WorkoutSubmitRequestDto;
 import com.dryrun.brogres.security.SecurityUtils;
 import com.dryrun.brogres.service.ExerciseCatalogService;
 import com.dryrun.brogres.service.WorkoutService;

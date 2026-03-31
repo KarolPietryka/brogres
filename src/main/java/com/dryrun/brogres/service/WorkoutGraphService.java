@@ -1,7 +1,7 @@
 package com.dryrun.brogres.service;
 
 import com.dryrun.brogres.data.Workout;
-import com.dryrun.brogres.data.WorkoutResponseDtos.GraphVolumePointDto;
+import com.dryrun.brogres.model.WorkoutResponseDtos.GraphVolumePointDto;
 import com.dryrun.brogres.data.WorkoutSet;
 import com.dryrun.brogres.data.WorkoutSetStatus;
 import com.dryrun.brogres.repo.WorkoutRepository;
