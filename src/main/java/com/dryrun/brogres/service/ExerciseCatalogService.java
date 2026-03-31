@@ -13,10 +13,10 @@ public class ExerciseCatalogService {
 
     private static final Map<String, List<String>> BY_GROUP = Map.of(
             "Chest", List.of("Butterfly", "Incline Bench Press", "Bench Press", "Dip"),
-            "Back", List.of("Pull Up", "Wiosłowanie ze sztangą", "Wiosłowanie na maszynie"),
-            "Legs", List.of("Squat", "Squat na maszynie"),
-            "Arms", List.of("Chin Up", "Hantle curl", "Prostowanie ramienia na maszynie"),
-            "Shoulders", List.of("OHP sztanga", "OHP maszyna", "OHP hantle", "Lateral Raise")
+            "Back", List.of("Pull Up", "Barbell Row", "Machine Row"),
+            "Legs", List.of("Squat", "Machine Squat"),
+            "Arms", List.of("Chin Up", "Dumbbell Curl", "Triceps Pushdown"),
+            "Shoulders", List.of("Barbell Overhead Press", "Machine Overhead Press", "Dumbbell Overhead Press", "Lateral Raise")
     );
 
     public Map<String, List<String>> exercisesByDisplayGroup() {
