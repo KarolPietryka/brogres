@@ -32,6 +32,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/h2-console", "/h2-console/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/workout/health").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling(e -> e.authenticationEntryPoint((req, res, ex) -> {
