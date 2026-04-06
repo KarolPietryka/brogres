@@ -19,8 +19,9 @@ public class WorkoutSet {
     @EqualsAndHashCode.Include
     private Long id;
 
-    @Column(nullable = false)
-    private String exercise;
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "exercise_id", nullable = false)
+    private Exercise exercise;
 
     @Column(nullable = false)
     private int repetitions;

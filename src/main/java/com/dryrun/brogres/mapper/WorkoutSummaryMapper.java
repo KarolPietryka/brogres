@@ -68,7 +68,8 @@ public interface WorkoutSummaryMapper {
                     String part = set.getBodyPart() != null ? set.getBodyPart() : "";
                     return new WorkoutExerciseViewDto(
                             part,
-                            set.getExercise(),
+                            set.getExercise().getName(),
+                            set.getExercise().getId(),
                             set.getLineOrder(),
                             set.getWeight(),
                             set.getRepetitions(),

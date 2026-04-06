@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                                http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="010-catalog-exercise-table" author="brogres">
+        <createTable tableName="catalog_exercise">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="body_part" type="varchar(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="name" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sort_order" type="integer">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addUniqueConstraint tableName="catalog_exercise" columnNames="body_part, name"
+                             constraintName="uk_catalog_exercise_body_part_name"/>
+    </changeSet>
+
+    <!-- Seed: built-in catalog rows (API body_part keys + display names). -->
+    <changeSet id="010a-catalog-exercise-seed" author="brogres">
+        <sql dbms="h2,postgresql" splitStatements="true" stripComments="true" endDelimiter=";">
+            INSERT INTO catalog_exercise (body_part, name, sort_order) VALUES
+            ('chest', 'Butterfly', 0),
+            ('chest', 'Incline Bench Press', 1),
+            ('chest', 'Bench Press', 2),
+            ('chest', 'Dip', 3),
+            ('back', 'Pull Up', 0),
+            ('back', 'Barbell Row', 1),
+            ('back', 'Machine Row', 2),
+            ('legs', 'Squat', 0),
+            ('legs', 'Machine Squat', 1),
+            ('arms', 'Chin Up', 0),
+            ('arms', 'Dumbbell Curl', 1),
+            ('arms', 'Triceps Pushdown', 2),
+            ('shoulders', 'Barbell Overhead Press', 0),
+            ('shoulders', 'Machine Overhead Press', 1),
+            ('shoulders', 'Dumbbell Overhead Press', 2),
+            ('shoulders', 'Lateral Raise', 3);
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

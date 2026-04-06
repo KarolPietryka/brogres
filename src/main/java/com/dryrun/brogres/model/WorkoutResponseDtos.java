@@ -26,6 +26,7 @@ public final class WorkoutResponseDtos {
     public record WorkoutExerciseViewDto(
             String bodyPartName,
             String name,
+            Long exerciseId,
             int orderId,
             BigDecimal weight,
             int reps,

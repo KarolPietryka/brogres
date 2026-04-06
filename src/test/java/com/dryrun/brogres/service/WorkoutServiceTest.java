@@ -1,6 +1,7 @@
 package com.dryrun.brogres.service;
 
 import com.dryrun.brogres.data.AppUser;
+import com.dryrun.brogres.data.Exercise;
 import com.dryrun.brogres.data.Workout;
 import com.dryrun.brogres.model.WorkoutResponseDtos.WorkoutExerciseViewDto;
 import com.dryrun.brogres.model.WorkoutResponseDtos.WorkoutPrefillDto;
@@ -9,6 +10,7 @@ import com.dryrun.brogres.data.WorkoutSetStatus;
 import com.dryrun.brogres.model.WorkoutSubmitRequestDto;
 import com.dryrun.brogres.mapper.WorkoutSummaryMapper;
 import com.dryrun.brogres.repo.AppUserRepository;
+import com.dryrun.brogres.repo.ExerciseRepository;
 import com.dryrun.brogres.repo.WorkoutSetRepository;
 import com.dryrun.brogres.repo.WorkoutRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,6 +28,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
@@ -39,11 +42,16 @@ class WorkoutServiceTest {
 
     private static final long USER_ID = 1L;
 
+    private final AtomicLong exerciseIdSeq = new AtomicLong(4000L);
+
     @Mock
     WorkoutFactory workoutFactory;
 
     @Mock
     AppUserRepository appUserRepository;
+
+    @Mock
+    ExerciseRepository exerciseRepository;
 
     @Mock
     WorkoutRepository workoutRepository;
@@ -62,6 +70,19 @@ class WorkoutServiceTest {
         AppUser user = new AppUser();
         user.setId(USER_ID);
         when(appUserRepository.findById(USER_ID)).thenReturn(Optional.of(user));
+        when(appUserRepository.getReferenceById(USER_ID)).thenReturn(user);
+        // When: no pre-existing Exercise row — resolve falls through to save() for a new user-owned definition.
+        when(exerciseRepository.findByUser_IdAndBodyPartAndName(eq(USER_ID), anyString(), anyString()))
+                .thenReturn(Optional.empty());
+        when(exerciseRepository.findByUserIsNullAndBodyPartAndName(anyString(), anyString()))
+                .thenReturn(Optional.empty());
+        when(exerciseRepository.save(any(Exercise.class))).thenAnswer(invocation -> {
+            Exercise ex = invocation.getArgument(0);
+            if (ex.getId() == null) {
+                ex.setId(exerciseIdSeq.incrementAndGet());
+            }
+            return ex;
+        });
     }
 
     @Captor
@@ -79,9 +100,9 @@ class WorkoutServiceTest {
         LocalDate today = LocalDate.now();
 
         WorkoutSubmitRequestDto request = new WorkoutSubmitRequestDto(List.of(
-                new WorkoutSubmitRequestDto.WorkoutExerciseDto("chest", "Bench Press", new BigDecimal("60.0"), 8, null),
-                new WorkoutSubmitRequestDto.WorkoutExerciseDto("chest", "Bench Press", new BigDecimal("65.0"), 6, null),
-                new WorkoutSubmitRequestDto.WorkoutExerciseDto("back", "Pull-ups", null, 10, null)
+                new WorkoutSubmitRequestDto.WorkoutExerciseDto("chest", "Bench Press", null, new BigDecimal("60.0"), 8, null),
+                new WorkoutSubmitRequestDto.WorkoutExerciseDto("chest", "Bench Press", null, new BigDecimal("65.0"), 6, null),
+                new WorkoutSubmitRequestDto.WorkoutExerciseDto("back", "Pull-ups", null, null, 10, null)
         ));
 
         Workout factoryWorkout = new Workout();
@@ -108,22 +129,22 @@ class WorkoutServiceTest {
         assertThat(savedWorkoutSets).hasSize(3);
         assertThat(savedWorkoutSets).allSatisfy(s -> {
             assertThat(s.getWorkout()).isSameAs(savedWorkout);
-            assertThat(s.getExercise()).isNotBlank();
+            assertThat(s.getExercise().getName()).isNotBlank();
             assertThat(s.getRepetitions()).isPositive();
             assertThat(s.getStatus()).isEqualTo(WorkoutSetStatus.DONE);
         });
 
-        assertThat(savedWorkoutSets.get(0).getExercise()).isEqualTo("Bench Press");
+        assertThat(savedWorkoutSets.get(0).getExercise().getName()).isEqualTo("Bench Press");
         assertThat(savedWorkoutSets.get(0).getBodyPart()).isEqualTo("chest");
         assertThat(savedWorkoutSets.get(0).getWeight()).isEqualByComparingTo(new BigDecimal("60.0"));
         assertThat(savedWorkoutSets.get(0).getRepetitions()).isEqualTo(8);
 
-        assertThat(savedWorkoutSets.get(1).getExercise()).isEqualTo("Bench Press");
+        assertThat(savedWorkoutSets.get(1).getExercise().getName()).isEqualTo("Bench Press");
         assertThat(savedWorkoutSets.get(1).getBodyPart()).isEqualTo("chest");
         assertThat(savedWorkoutSets.get(1).getWeight()).isEqualByComparingTo(new BigDecimal("65.0"));
         assertThat(savedWorkoutSets.get(1).getRepetitions()).isEqualTo(6);
 
-        assertThat(savedWorkoutSets.get(2).getExercise()).isEqualTo("Pull-ups");
+        assertThat(savedWorkoutSets.get(2).getExercise().getName()).isEqualTo("Pull-ups");
         assertThat(savedWorkoutSets.get(2).getBodyPart()).isEqualTo("back");
         assertThat(savedWorkoutSets.get(2).getWeight()).isNull();
         assertThat(savedWorkoutSets.get(2).getRepetitions()).isEqualTo(10);
@@ -135,7 +156,7 @@ class WorkoutServiceTest {
         assertThat(result).isSameAs(savedWorkout);
 
         verify(workoutRepository, never()).findFirstByUser_IdAndWorkoutDateLessThanOrderByWorkoutDateDesc(any(), any());
-        verifyNoMoreInteractions(workoutRepository, workoutSetRepository, workoutFactory);
+        verifyNoMoreInteractions(workoutRepository, workoutSetRepository, workoutFactory, exerciseRepository);
     }
 
     /**
@@ -146,7 +167,7 @@ class WorkoutServiceTest {
         LocalDate today = LocalDate.now();
 
         WorkoutSubmitRequestDto request = new WorkoutSubmitRequestDto(List.of(
-                new WorkoutSubmitRequestDto.WorkoutExerciseDto("chest", "Bench Press", new BigDecimal("60.0"), 8, null)
+                new WorkoutSubmitRequestDto.WorkoutExerciseDto("chest", "Bench Press", null, new BigDecimal("60.0"), 8, null)
         ));
 
         Workout factoryWorkout = new Workout();
@@ -162,7 +183,7 @@ class WorkoutServiceTest {
 
         verify(workoutSetRepository, times(1)).saveAll(setsCaptor.capture());
         assertThat(setsCaptor.getValue()).hasSize(1);
-        assertThat(setsCaptor.getValue().get(0).getExercise()).isEqualTo("Bench Press");
+        assertThat(setsCaptor.getValue().get(0).getExercise().getName()).isEqualTo("Bench Press");
         assertThat(setsCaptor.getValue().get(0).getStatus()).isEqualTo(WorkoutSetStatus.DONE);
         verify(workoutRepository, never()).findFirstByUser_IdAndWorkoutDateLessThanOrderByWorkoutDateDesc(any(), any());
     }
@@ -175,9 +196,9 @@ class WorkoutServiceTest {
         LocalDate today = LocalDate.now();
 
         WorkoutSubmitRequestDto request = new WorkoutSubmitRequestDto(List.of(
-                new WorkoutSubmitRequestDto.WorkoutExerciseDto("chest", "Done row", BigDecimal.TEN, 8, WorkoutSetStatus.DONE),
-                new WorkoutSubmitRequestDto.WorkoutExerciseDto("chest", "Next row", BigDecimal.TEN, 8, WorkoutSetStatus.NEXT),
-                new WorkoutSubmitRequestDto.WorkoutExerciseDto("chest", "Planned row", BigDecimal.TEN, 8, WorkoutSetStatus.PLANNED)
+                new WorkoutSubmitRequestDto.WorkoutExerciseDto("chest", "Done row", null, BigDecimal.TEN, 8, WorkoutSetStatus.DONE),
+                new WorkoutSubmitRequestDto.WorkoutExerciseDto("chest", "Next row", null, BigDecimal.TEN, 8, WorkoutSetStatus.NEXT),
+                new WorkoutSubmitRequestDto.WorkoutExerciseDto("chest", "Planned row", null, BigDecimal.TEN, 8, WorkoutSetStatus.PLANNED)
         ));
 
         when(workoutFactory.createWorkout()).thenReturn(new Workout());
@@ -206,7 +227,7 @@ class WorkoutServiceTest {
         LocalDate today = LocalDate.now();
 
         WorkoutSubmitRequestDto request = new WorkoutSubmitRequestDto(List.of(
-                new WorkoutSubmitRequestDto.WorkoutExerciseDto("chest", "Bench Press", new BigDecimal("60.0"), 8, null)
+                new WorkoutSubmitRequestDto.WorkoutExerciseDto("chest", "Bench Press", null, new BigDecimal("60.0"), 8, null)
         ));
 
         Workout existing = new Workout();
@@ -229,14 +250,14 @@ class WorkoutServiceTest {
         WorkoutSet persisted = saved.get(0);
         assertThat(persisted.getWorkout()).isSameAs(existing);
         assertThat(persisted.getBodyPart()).isEqualTo("chest");
-        assertThat(persisted.getExercise()).isEqualTo("Bench Press");
+        assertThat(persisted.getExercise().getName()).isEqualTo("Bench Press");
         assertThat(persisted.getWeight()).isEqualByComparingTo(new BigDecimal("60.0"));
         assertThat(persisted.getRepetitions()).isEqualTo(8);
         assertThat(persisted.getLineOrder()).isZero();
         assertThat(persisted.getStatus()).isEqualTo(WorkoutSetStatus.DONE);
         assertThat(result).isSameAs(existing);
 
-        verifyNoMoreInteractions(workoutRepository, workoutSetRepository, workoutFactory);
+        verifyNoMoreInteractions(workoutRepository, workoutSetRepository, workoutFactory, exerciseRepository);
     }
 
     @Test
@@ -251,7 +272,7 @@ class WorkoutServiceTest {
         planned.setId(1L);
         planned.setWorkout(todayW);
         planned.setBodyPart("chest");
-        planned.setExercise("Bench");
+        planned.setExercise(ex(501L, "chest", "Bench"));
         planned.setWeight(new BigDecimal("50"));
         planned.setRepetitions(5);
         planned.setLineOrder(0);
@@ -263,7 +284,7 @@ class WorkoutServiceTest {
         WorkoutPrefillDto result = workoutService.prefillWorkout(USER_ID);
 
         assertThat(result.bodyPart()).containsExactly(
-                new WorkoutExerciseViewDto("chest", "Bench", 0, new BigDecimal("50"), 5, WorkoutSetStatus.NEXT));
+                new WorkoutExerciseViewDto("chest", "Bench", 501L, 0, new BigDecimal("50"), 5, WorkoutSetStatus.NEXT));
 
         verify(workoutRepository).existsByWorkoutDateAndUser_Id(today, USER_ID);
         verify(workoutRepository).findByWorkoutDateAndUser_Id(today, USER_ID);
@@ -288,7 +309,7 @@ class WorkoutServiceTest {
         done.setId(1L);
         done.setWorkout(todayW);
         done.setBodyPart("chest");
-        done.setExercise("Squat");
+        done.setExercise(ex(502L, "chest", "Squat"));
         done.setWeight(new BigDecimal("100"));
         done.setRepetitions(5);
         done.setLineOrder(0);
@@ -298,7 +319,7 @@ class WorkoutServiceTest {
         planned.setId(2L);
         planned.setWorkout(todayW);
         planned.setBodyPart("chest");
-        planned.setExercise("Bench");
+        planned.setExercise(ex(501L, "chest", "Bench"));
         planned.setWeight(new BigDecimal("50"));
         planned.setRepetitions(5);
         planned.setLineOrder(1);
@@ -310,8 +331,8 @@ class WorkoutServiceTest {
         WorkoutPrefillDto result = workoutService.prefillWorkout(USER_ID);
 
         assertThat(result.bodyPart()).containsExactly(
-                new WorkoutExerciseViewDto("chest", "Squat", 0, new BigDecimal("100"), 5, WorkoutSetStatus.NEXT),
-                new WorkoutExerciseViewDto("chest", "Bench", 1, new BigDecimal("50"), 5, WorkoutSetStatus.PLANNED));
+                new WorkoutExerciseViewDto("chest", "Squat", 502L, 0, new BigDecimal("100"), 5, WorkoutSetStatus.NEXT),
+                new WorkoutExerciseViewDto("chest", "Bench", 501L, 1, new BigDecimal("50"), 5, WorkoutSetStatus.PLANNED));
     }
 
     @Test
@@ -345,7 +366,7 @@ class WorkoutServiceTest {
         s1.setId(10L);
         s1.setWorkout(previous);
         s1.setBodyPart("chest");
-        s1.setExercise("Bench Press");
+        s1.setExercise(ex(601L, "chest", "Bench Press"));
         s1.setWeight(new BigDecimal("60.0"));
         s1.setRepetitions(8);
         s1.setLineOrder(0);
@@ -355,7 +376,7 @@ class WorkoutServiceTest {
         s2.setId(11L);
         s2.setWorkout(previous);
         s2.setBodyPart("chest");
-        s2.setExercise("Bench Press");
+        s2.setExercise(ex(601L, "chest", "Bench Press"));
         s2.setWeight(new BigDecimal("65.0"));
         s2.setRepetitions(6);
         s2.setLineOrder(1);
@@ -365,7 +386,7 @@ class WorkoutServiceTest {
         s3.setId(12L);
         s3.setWorkout(previous);
         s3.setBodyPart("back");
-        s3.setExercise("Pull-ups");
+        s3.setExercise(ex(602L, "back", "Pull-ups"));
         s3.setWeight(null);
         s3.setRepetitions(10);
         s3.setLineOrder(2);
@@ -380,9 +401,9 @@ class WorkoutServiceTest {
         WorkoutPrefillDto result = workoutService.prefillWorkout(USER_ID);
 
         assertThat(result.bodyPart()).containsExactly(
-                new WorkoutExerciseViewDto("chest", "Bench Press", 0, new BigDecimal("60.0"), 8, WorkoutSetStatus.NEXT),
-                new WorkoutExerciseViewDto("chest", "Bench Press", 1, new BigDecimal("65.0"), 6, WorkoutSetStatus.PLANNED),
-                new WorkoutExerciseViewDto("back", "Pull-ups", 2, null, 10, WorkoutSetStatus.PLANNED));
+                new WorkoutExerciseViewDto("chest", "Bench Press", 601L, 0, new BigDecimal("60.0"), 8, WorkoutSetStatus.NEXT),
+                new WorkoutExerciseViewDto("chest", "Bench Press", 601L, 1, new BigDecimal("65.0"), 6, WorkoutSetStatus.PLANNED),
+                new WorkoutExerciseViewDto("back", "Pull-ups", 602L, 2, null, 10, WorkoutSetStatus.PLANNED));
 
         verify(workoutRepository).existsByWorkoutDateAndUser_Id(today, USER_ID);
         verify(workoutRepository).findFirstByUser_IdAndWorkoutDateLessThanOrderByWorkoutDateDesc(USER_ID, today);
@@ -435,7 +456,7 @@ class WorkoutServiceTest {
         LocalDate today = LocalDate.now();
 
         WorkoutSubmitRequestDto request = new WorkoutSubmitRequestDto(List.of(
-                new WorkoutSubmitRequestDto.WorkoutExerciseDto("chest", "X", BigDecimal.ONE, 1, null)
+                new WorkoutSubmitRequestDto.WorkoutExerciseDto("chest", "X", null, BigDecimal.ONE, 1, null)
         ));
 
         when(workoutFactory.createWorkout()).thenReturn(new Workout());
@@ -450,5 +471,14 @@ class WorkoutServiceTest {
 
         verify(workoutSetRepository, times(1)).saveAll(anyList());
         verify(workoutRepository, never()).findFirstByUser_IdAndWorkoutDateLessThanOrderByWorkoutDateDesc(any(), any());
+    }
+
+    private static Exercise ex(long id, String bodyPart, String name) {
+        Exercise e = new Exercise();
+        e.setId(id);
+        e.setBodyPart(bodyPart);
+        e.setName(name);
+        e.setSortOrder(0);
+        return e;
     }
 }

@@ -1,5 +1,6 @@
 package com.dryrun.brogres.service;
 
+import com.dryrun.brogres.data.Exercise;
 import com.dryrun.brogres.data.Workout;
 import com.dryrun.brogres.model.WorkoutResponseDtos.GraphVolumePointDto;
 import com.dryrun.brogres.data.WorkoutSet;
@@ -131,7 +132,11 @@ class WorkoutGraphServiceTest {
         ws.setRepetitions(reps);
         ws.setWeight(new BigDecimal(weight));
         ws.setStatus(status);
-        ws.setExercise("x");
+        Exercise ex = new Exercise();
+        ex.setName("x");
+        ex.setBodyPart(bodyPart);
+        ex.setSortOrder(0);
+        ws.setExercise(ex);
         ws.setLineOrder(0);
         return ws;
     }

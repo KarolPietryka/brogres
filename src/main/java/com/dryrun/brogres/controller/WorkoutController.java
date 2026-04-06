@@ -3,28 +3,44 @@ package com.dryrun.brogres.controller;
 import com.dryrun.brogres.data.Workout;
 import com.dryrun.brogres.model.WorkoutResponseDtos.WorkoutPrefillDto;
 import com.dryrun.brogres.model.WorkoutResponseDtos.WorkoutSummaryDto;
+import com.dryrun.brogres.model.ExerciseDtos.CreateExerciseRequest;
+import com.dryrun.brogres.model.ExerciseDtos.ExercisePickerDto;
+import com.dryrun.brogres.model.ExerciseDtos.ExerciseRefDto;
 import com.dryrun.brogres.model.WorkoutSubmitRequestDto;
 import com.dryrun.brogres.security.SecurityUtils;
-import com.dryrun.brogres.service.ExerciseCatalogService;
+import com.dryrun.brogres.service.ExercisePickerService;
 import com.dryrun.brogres.service.WorkoutService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 
+@Validated
 @RestController
 @RequestMapping("/workout")
 @RequiredArgsConstructor
 public class WorkoutController {
 
     private final WorkoutService workoutService;
-    private final ExerciseCatalogService exerciseCatalogService;
+    private final ExercisePickerService exercisePickerService;
 
-    @GetMapping("/exercise-catalog")
-    public Map<String, List<String>> exerciseCatalog() {
-        return exerciseCatalogService.exercisesByDisplayGroup();
+    /**
+     * Exercises for the add-workout picker: global catalog plus this user’s custom names for the body part.
+     */
+    @GetMapping("/exercises/picker")
+    public ExercisePickerDto exercisePicker(@RequestParam("bodyPart") @NotBlank String bodyPart) {
+        return exercisePickerService.pickerForBodyPart(SecurityUtils.requireUserId(), bodyPart.trim());
+    }
+
+    /** Creates a user-owned exercise name for a body part (duplicate name → 409). */
+    @PostMapping("/exercises")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ExerciseRefDto createUserExercise(@Valid @RequestBody CreateExerciseRequest request) {
+        return exercisePickerService.createUserExercise(SecurityUtils.requireUserId(), request);
     }
 
     @GetMapping

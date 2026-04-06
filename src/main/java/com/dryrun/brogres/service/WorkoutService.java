@@ -9,12 +9,16 @@ import com.dryrun.brogres.data.WorkoutSet;
 import com.dryrun.brogres.data.WorkoutSetStatus;
 import com.dryrun.brogres.mapper.WorkoutSummaryMapper;
 import com.dryrun.brogres.data.AppUser;
+import com.dryrun.brogres.data.Exercise;
 import com.dryrun.brogres.repo.AppUserRepository;
+import com.dryrun.brogres.repo.ExerciseRepository;
 import com.dryrun.brogres.repo.WorkoutRepository;
 import com.dryrun.brogres.repo.WorkoutSetRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -29,6 +33,7 @@ public class WorkoutService {
 
     private final WorkoutFactory workoutFactory;
     private final AppUserRepository appUserRepository;
+    private final ExerciseRepository exerciseRepository;
     private final WorkoutRepository workoutRepository;
     private final WorkoutSetRepository workoutSetRepository;
     private final WorkoutSummaryMapper workoutSummaryMapper;
@@ -62,7 +67,7 @@ public class WorkoutService {
             WorkoutSet workoutSet = new WorkoutSet();
             workoutSet.setWorkout(workout);
             workoutSet.setBodyPart(exerciseDto.bodyPartName());
-            workoutSet.setExercise(exerciseDto.name());
+            workoutSet.setExercise(resolveExerciseForRow(userId, exerciseDto));
             workoutSet.setWeight(exerciseDto.weight());
             workoutSet.setRepetitions(exerciseDto.reps());
             workoutSet.setLineOrder(lineOrder++);
@@ -72,6 +77,55 @@ public class WorkoutService {
 
         workoutSetRepository.saveAll(setsToSave);
         return workout;
+    }
+
+    private Exercise resolveExerciseForRow(Long userId, WorkoutSubmitRequestDto.WorkoutExerciseDto dto) {
+        // Prefer an explicit exerciseId (strong reference) when the client provides it.
+        if (dto.exerciseId() != null) {
+            // Fetch and validate that the referenced Exercise exists.
+            Exercise e = exerciseRepository.findById(dto.exerciseId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown exercise"));
+
+            // Safety check: prevent mixing an exercise with a different body part than the row declares.
+            if (!e.getBodyPart().equals(dto.bodyPartName())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Exercise does not match body part");
+            }
+
+            // Access control: user can reference either catalog exercises (user == null) or their own.
+            if (e.getUser() != null && !e.getUser().getId().equals(userId)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Exercise not accessible");
+            }
+            return e;
+        }
+
+        // Fallback path: resolve by (bodyPart + name), optionally creating a user-owned exercise when missing.
+        return resolveExerciseByName(userId, dto.bodyPartName(), dto.name());
+    }
+
+    /**
+     * Resolves catalog vs user-owned exercise; creates a user row when the name is not found
+     * (same {@code bodyPart} + label as the client sent).
+     */
+    private Exercise resolveExerciseByName(Long userId, String bodyPart, String name) {
+        // Normalize the label so lookups and uniqueness behave consistently.
+        String trimmed = name.trim();
+
+        // Resolution order:
+        // 1) user-owned exact match, 2) global catalog match, 3) create a new user-owned definition.
+        return exerciseRepository
+                .findByUser_IdAndBodyPartAndName(userId, bodyPart, trimmed)
+                .or(() -> exerciseRepository.findByUserIsNullAndBodyPartAndName(bodyPart, trimmed))
+                .orElseGet(() -> persistUserOwnedExercise(userId, bodyPart, trimmed));
+    }
+
+    private Exercise persistUserOwnedExercise(Long userId, String bodyPart, String name) {
+        // Create a minimal Exercise entity owned by the user (no catalog linkage).
+        Exercise e = new Exercise();
+        e.setUser(appUserRepository.getReferenceById(userId)); // reference proxy is enough for FK
+        e.setBodyPart(bodyPart);
+        e.setName(name);
+        e.setSortOrder(0); // UI-only ordering hint (default)
+        return exerciseRepository.save(e);
     }
 
     /**
@@ -129,7 +183,13 @@ public class WorkoutService {
         return bodyPart.stream()
                 .map(e -> e.status() == WorkoutSetStatus.DONE
                         ? new WorkoutExerciseViewDto(
-                                e.bodyPartName(), e.name(), e.orderId(), e.weight(), e.reps(), WorkoutSetStatus.PLANNED)
+                                e.bodyPartName(),
+                                e.name(),
+                                e.exerciseId(),
+                                e.orderId(),
+                                e.weight(),
+                                e.reps(),
+                                WorkoutSetStatus.PLANNED)
                         : e)
                 .toList();
     }
@@ -157,7 +217,8 @@ public class WorkoutService {
                     }
                     // Change only head row to NEXT, all others keep PLANNED.
                     WorkoutSetStatus s = samePlanRow(e, h) ? WorkoutSetStatus.NEXT : WorkoutSetStatus.PLANNED;
-                    return new WorkoutExerciseViewDto(e.bodyPartName(), e.name(), e.orderId(), e.weight(), e.reps(), s);
+                    return new WorkoutExerciseViewDto(
+                            e.bodyPartName(), e.name(), e.exerciseId(), e.orderId(), e.weight(), e.reps(), s);
                 })
                 .toList();
     }
@@ -173,6 +234,7 @@ public class WorkoutService {
         return a.orderId() == b.orderId()
                 && a.bodyPartName().equals(b.bodyPartName())
                 && a.name().equals(b.name())
+                && Objects.equals(a.exerciseId(), b.exerciseId())
                 && Objects.equals(a.weight(), b.weight())
                 && a.reps() == b.reps();
     }
