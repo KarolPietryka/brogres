@@ -17,5 +17,6 @@ http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
     <include file="db/changelog/changes/009-jungle-gym-bar-kapiet.xml"/>
     <include file="db/changelog/changes/010-catalog-exercise.xml"/>
     <include file="db/changelog/changes/011-remove-workout-2026-04-04-kapiet-and-copy-to-demo.xml"/>
+    <include file="db/changelog/changes/012-update-catalog-exercises.xml"/>
 
 </databaseChangeLog>

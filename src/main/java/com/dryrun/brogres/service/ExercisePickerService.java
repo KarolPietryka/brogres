@@ -22,7 +22,7 @@ import java.util.Set;
 public class ExercisePickerService {
 
     private static final Set<String> ALLOWED_BODY_PARTS =
-            Set.of("chest", "back", "legs", "arms", "shoulders");
+            Set.of("chest", "back", "legs", "abs", "arms", "shoulders");
 
     private final ExerciseRepository exerciseRepository;
     private final AppUserRepository appUserRepository;
