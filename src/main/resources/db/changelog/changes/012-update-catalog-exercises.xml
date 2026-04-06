@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                                http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- Add Lat Pulldown to back exercises and reorder -->
+    <changeSet id="012-add-lat-pulldown-reorder-back" author="brogres">
+        <sql dbms="h2,postgresql" splitStatements="true" stripComments="true" endDelimiter=";">
+            -- Insert Lat Pulldown
+            INSERT INTO exercise (user_id, body_part, name, sort_order)
+            VALUES (NULL, 'back', 'Lat Pulldown', 1);
+
+            -- Reorder existing back exercises
+            UPDATE exercise SET sort_order = 2 WHERE user_id IS NULL AND body_part = 'back' AND name = 'Barbell Row';
+            UPDATE exercise SET sort_order = 3 WHERE user_id IS NULL AND body_part = 'back' AND name = 'Machine Row';
+        </sql>
+    </changeSet>
+
+    <!-- Rename Triceps Pushdown to Triceps Curl -->
+    <changeSet id="012-rename-triceps-pushdown-to-curl" author="brogres">
+        <sql dbms="h2,postgresql" splitStatements="true" stripComments="true" endDelimiter=";">
+            UPDATE exercise
+            SET name = 'Triceps Curl'
+            WHERE user_id IS NULL AND body_part = 'arms' AND name = 'Triceps Pushdown';
+        </sql>
+    </changeSet>
+
+    <!-- Add ABS body part with exercises -->
+    <changeSet id="012-add-abs-exercises" author="brogres">
+        <sql dbms="h2,postgresql" splitStatements="true" stripComments="true" endDelimiter=";">
+            INSERT INTO exercise (user_id, body_part, name, sort_order) VALUES
+                (NULL, 'abs', 'Leg Raise', 1);
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>
