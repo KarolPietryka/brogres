@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- Usuwa workout z 04.04.2026 dla usera kapiet (id=2), jeśli istnieje -->
+    <changeSet id="011-remove-workout-2026-04-04-kapiet" author="dev">
+        <comment>Usuwa workout z 04.04.2026 dla usera kapiet (id=2), jeśli istnieje</comment>
+
+        <!-- Najpierw usuń powiązane workout_set (FK constraint) -->
+        <delete tableName="workout_set">
+            <where>workout_id IN (SELECT id FROM workout WHERE workout_date = '2026-04-04' AND user_id = 2)</where>
+        </delete>
+
+        <!-- Następnie usuń sam workout -->
+        <delete tableName="workout">
+            <where>workout_date = '2026-04-04' AND user_id = 2</where>
+        </delete>
+    </changeSet>
+
+    <!-- Kopiuje workouty z kapiet (id=2) do demo (id=1) -->
+    <changeSet id="011-copy-kapiet-workouts-to-demo" author="dev" context="dev">
+        <comment>Kopiuje wszystkie workouty usera kapiet (id=2) do usera demo (id=1)</comment>
+        <sql dbms="h2,postgresql" splitStatements="true" stripComments="true" endDelimiter=";">
+            -- Usuń istniejące workouty demo, aby uniknąć duplikatów
+            DELETE FROM workout_set WHERE workout_id IN (
+                SELECT id FROM workout WHERE user_id = 1
+            );
+            DELETE FROM workout WHERE user_id = 1;
+
+            -- Kopiuj workouty z kapiet do demo
+            INSERT INTO workout (workout_date, created_by, modified_by, created_on, modified_on, user_id)
+            SELECT workout_date, created_by, modified_by, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1
+            FROM workout
+            WHERE user_id = 2;
+
+            -- Kopiuj workout_set z kapiet do demo (mapując na nowe workout_id)
+            INSERT INTO workout_set (exercise_id, repetitions, body_part, weight, line_order, workout_id, status)
+            SELECT 
+                ws.exercise_id,
+                ws.repetitions,
+                ws.body_part,
+                ws.weight,
+                ws.line_order,
+                w_demo.id,
+                ws.status
+            FROM workout_set ws
+            JOIN workout w_kapiet ON ws.workout_id = w_kapiet.id AND w_kapiet.user_id = 2
+            JOIN workout w_demo ON w_demo.user_id = 1 AND w_demo.workout_date = w_kapiet.workout_date;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>
