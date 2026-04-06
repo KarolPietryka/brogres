@@ -61,6 +61,28 @@ public class WorkoutService {
             workout = workoutRepository.save(workout);
         }
 
+        persistSetsForWorkout(workout, userId, request);
+        return workout;
+    }
+
+    /**
+     * Full replace of sets for an existing workout (any date). Used when editing a session from summary.
+     */
+    @Transactional
+    public Workout replaceWorkout(Long userId, Long workoutId, WorkoutSubmitRequestDto request) {
+        Workout workout = workoutRepository.findById(workoutId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Workout not found"));
+        if (!workout.getUser().getId().equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Workout not found");
+        }
+        workoutSetRepository.deleteAllByWorkoutId(workout.getId());
+        workoutSetRepository.flush();
+        persistSetsForWorkout(workout, userId, request);
+        return workout;
+    }
+
+    /** Inserts request rows as {@link WorkoutSet} lines in {@code lineOrder} sequence (workout must be persisted). */
+    private void persistSetsForWorkout(Workout workout, Long userId, WorkoutSubmitRequestDto request) {
         int lineOrder = 0;
         List<WorkoutSet> setsToSave = new ArrayList<>();
         for (WorkoutSubmitRequestDto.WorkoutExerciseDto exerciseDto : request.exercises()) {
@@ -74,9 +96,7 @@ public class WorkoutService {
             workoutSet.setStatus(persistStatusFromSubmit(exerciseDto.status()));
             setsToSave.add(workoutSet);
         }
-
         workoutSetRepository.saveAll(setsToSave);
-        return workout;
     }
 
     private Exercise resolveExerciseForRow(Long userId, WorkoutSubmitRequestDto.WorkoutExerciseDto dto) {

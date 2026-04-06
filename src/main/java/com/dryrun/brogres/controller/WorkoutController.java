@@ -53,6 +53,14 @@ public class WorkoutController {
         return workoutService.createWorkout(SecurityUtils.requireUserId(), request);
     }
 
+    /** Full replace of sets for the given workout (same body as POST /workout). */
+    @PutMapping("/{workoutId}")
+    public Workout replaceWorkout(
+            @PathVariable Long workoutId,
+            @Valid @RequestBody WorkoutSubmitRequestDto request) {
+        return workoutService.replaceWorkout(SecurityUtils.requireUserId(), workoutId, request);
+    }
+
     /**
      * Prefill for the next session: flat {@code bodyPart} list (same per-row shape as POST {@code exercises}); empty when nothing to clone.
      */
@@ -61,10 +69,4 @@ public class WorkoutController {
         return workoutService.prefillWorkout(SecurityUtils.requireUserId());
     }
 
-    // Nowy endpoint: dodaje pojedyncze ćwiczenie do istniejącego Workout
-//    @PostMapping("/{workoutId}/exercises")
-//    public Workout addExerciseToWorkout(@PathVariable Long workoutId, @RequestBody String exerciseName) {
-//        // ...
-//       // return workoutService.addExerciseToWorkout(workoutId, exercise);
-//    }
 }

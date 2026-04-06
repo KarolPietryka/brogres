@@ -25,6 +25,9 @@ public class Workout extends Auditable {
     @Column(nullable = false)
     private LocalDate workoutDate;
 
+    /** Lazy; excluded from JSON and Lombok {@code toString} so POST/PUT can return the entity after the TX ends (no session). */
+    @JsonIgnore
+    @ToString.Exclude
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private AppUser user;
