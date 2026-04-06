@@ -5,11 +5,13 @@
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
                                 http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
-    <changeSet id="010-catalog-exercise-table" author="brogres">
-        <createTable tableName="catalog_exercise">
+    <!-- Single exercise table: user_id NULL = built-in catalog; else user-owned. WorkoutSet references exercise.id. -->
+    <changeSet id="010-exercise-table" author="brogres">
+        <createTable tableName="exercise">
             <column name="id" type="bigint" autoIncrement="true">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
+            <column name="user_id" type="bigint"/>
             <column name="body_part" type="varchar(64)">
                 <constraints nullable="false"/>
             </column>
@@ -20,30 +22,172 @@
                 <constraints nullable="false"/>
             </column>
         </createTable>
-        <addUniqueConstraint tableName="catalog_exercise" columnNames="body_part, name"
-                             constraintName="uk_catalog_exercise_body_part_name"/>
+        <addForeignKeyConstraint baseTableName="exercise" baseColumnNames="user_id"
+                                 constraintName="fk_exercise_app_user"
+                                 referencedTableName="app_user" referencedColumnNames="id"
+                                 onDelete="CASCADE"/>
     </changeSet>
 
-    <!-- Seed: built-in catalog rows (API body_part keys + display names). -->
-    <changeSet id="010a-catalog-exercise-seed" author="brogres">
+    <!-- PostgreSQL: partial unique indexes -->
+    <changeSet id="010-exercise-partial-unique" author="brogres" dbms="postgresql">
+        <sql splitStatements="true" stripComments="true" endDelimiter=";">
+            CREATE UNIQUE INDEX uk_exercise_catalog_body_name ON exercise (body_part, name) WHERE user_id IS NULL;
+            CREATE UNIQUE INDEX uk_exercise_user_body_name ON exercise (user_id, body_part, name) WHERE user_id IS NOT NULL;
+        </sql>
+    </changeSet>
+
+    <!-- H2: no partial unique indexes — non-unique indexes for lookups only -->
+    <changeSet id="010-exercise-indexes-h2" author="brogres" dbms="h2">
+        <createIndex indexName="idx_exercise_h2_body_part_name" tableName="exercise">
+            <column name="body_part"/>
+            <column name="name"/>
+        </createIndex>
+        <createIndex indexName="idx_exercise_h2_user_body_name" tableName="exercise">
+            <column name="user_id"/>
+            <column name="body_part"/>
+            <column name="name"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- Seed: built-in catalog rows (user_id = NULL) -->
+    <changeSet id="010-exercise-seed-catalog" author="brogres">
         <sql dbms="h2,postgresql" splitStatements="true" stripComments="true" endDelimiter=";">
-            INSERT INTO catalog_exercise (body_part, name, sort_order) VALUES
-            ('chest', 'Butterfly', 0),
-            ('chest', 'Incline Bench Press', 1),
-            ('chest', 'Bench Press', 2),
-            ('chest', 'Dip', 3),
-            ('back', 'Pull Up', 0),
-            ('back', 'Barbell Row', 1),
-            ('back', 'Machine Row', 2),
-            ('legs', 'Squat', 0),
-            ('legs', 'Machine Squat', 1),
-            ('arms', 'Chin Up', 0),
-            ('arms', 'Dumbbell Curl', 1),
-            ('arms', 'Triceps Pushdown', 2),
-            ('shoulders', 'Barbell Overhead Press', 0),
-            ('shoulders', 'Machine Overhead Press', 1),
-            ('shoulders', 'Dumbbell Overhead Press', 2),
-            ('shoulders', 'Lateral Raise', 3);
+            INSERT INTO exercise (user_id, body_part, name, sort_order) VALUES
+                                                                            (NULL, 'chest', 'Butterfly', 0),
+                                                                            (NULL, 'chest', 'Incline Bench Press', 1),
+                                                                            (NULL, 'chest', 'Bench Press', 2),
+                                                                            (NULL, 'chest', 'Dip', 3),
+                                                                            (NULL, 'back', 'Pull Up', 0),
+                                                                            (NULL, 'back', 'Barbell Row', 1),
+                                                                            (NULL, 'back', 'Machine Row', 2),
+                                                                            (NULL, 'legs', 'Squat', 0),
+                                                                            (NULL, 'legs', 'Machine Squat', 1),
+                                                                            (NULL, 'arms', 'Chin Up', 0),
+                                                                            (NULL, 'arms', 'Dumbbell Curl', 1),
+                                                                            (NULL, 'arms', 'Triceps Pushdown', 2),
+                                                                            (NULL, 'shoulders', 'Barbell Overhead Press', 0),
+                                                                            (NULL, 'shoulders', 'Machine Overhead Press', 1),
+                                                                            (NULL, 'shoulders', 'Dumbbell Overhead Press', 2),
+                                                                            (NULL, 'shoulders', 'Lateral Raise', 3);
+        </sql>
+    </changeSet>
+
+    <!-- Seed: custom exercises for user kapiet (id=2) -->
+    <changeSet id="010-exercise-seed-kapiet-custom" author="brogres">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="1">SELECT COUNT(*) FROM app_user WHERE LOWER(nick) = 'kapiet'</sqlCheck>
+        </preConditions>
+        <sql dbms="h2,postgresql" splitStatements="true" stripComments="true" endDelimiter=";">
+            INSERT INTO exercise (user_id, body_part, name, sort_order)
+            SELECT u.id, v.body_part, v.name, v.sort_order
+            FROM app_user u
+            CROSS JOIN (VALUES
+                ('chest', 'Incline Maszyna', 0),
+                ('chest', 'push-ups', 0)
+            ) AS v(body_part, name, sort_order)
+            WHERE LOWER(u.nick) = 'kapiet';
+        </sql>
+    </changeSet>
+
+    <!-- Add exercise_id column to workout_set -->
+    <changeSet id="010-workout-set-exercise-id" author="brogres">
+        <addColumn tableName="workout_set">
+            <column name="exercise_id" type="bigint"/>
+        </addColumn>
+    </changeSet>
+
+    <!-- Link existing workout_set rows to exercise by name (prefer user-owned, then catalog) -->
+    <changeSet id="010-workout-set-link-user-exercise" author="brogres">
+        <sql dbms="h2,postgresql" splitStatements="true" stripComments="true" endDelimiter=";">
+            UPDATE workout_set ws
+            SET exercise_id = (
+                SELECT e.id FROM exercise e
+                                     INNER JOIN workout w ON w.id = ws.workout_id
+                WHERE e.user_id = w.user_id AND e.body_part = ws.body_part AND e.name = ws.exercise
+                LIMIT 1
+                )
+            WHERE ws.exercise_id IS NULL;
+        </sql>
+    </changeSet>
+
+    <changeSet id="010-workout-set-link-catalog-exercise" author="brogres">
+        <sql dbms="h2,postgresql" splitStatements="true" stripComments="true" endDelimiter=";">
+            UPDATE workout_set ws
+            SET exercise_id = (
+                SELECT e.id FROM exercise e
+                WHERE e.user_id IS NULL AND e.body_part = ws.body_part AND e.name = ws.exercise
+                LIMIT 1
+                )
+            WHERE ws.exercise_id IS NULL;
+        </sql>
+    </changeSet>
+
+    <!-- Create user-owned exercises for orphan names (not in catalog) -->
+    <changeSet id="010-exercise-insert-orphan-names" author="brogres">
+        <sql dbms="h2,postgresql" splitStatements="true" stripComments="true" endDelimiter=";">
+            INSERT INTO exercise (user_id, body_part, name, sort_order)
+            SELECT DISTINCT w.user_id, ws.body_part, ws.exercise, 0
+            FROM workout_set ws
+                     INNER JOIN workout w ON w.id = ws.workout_id
+            WHERE ws.exercise_id IS NULL
+              AND NOT EXISTS (
+                SELECT 1 FROM exercise e
+                WHERE e.user_id = w.user_id AND e.body_part = ws.body_part AND e.name = ws.exercise
+            );
+        </sql>
+    </changeSet>
+
+    <changeSet id="010-workout-set-link-after-orphan-insert" author="brogres">
+        <sql dbms="h2,postgresql" splitStatements="true" stripComments="true" endDelimiter=";">
+            UPDATE workout_set ws
+            SET exercise_id = (
+                SELECT e.id FROM exercise e
+                                     INNER JOIN workout w ON w.id = ws.workout_id
+                WHERE e.user_id = w.user_id AND e.body_part = ws.body_part AND e.name = ws.exercise
+                LIMIT 1
+                )
+            WHERE ws.exercise_id IS NULL;
+        </sql>
+    </changeSet>
+
+    <!-- Make exercise_id NOT NULL and add FK -->
+    <changeSet id="010-workout-set-exercise-id-not-null-fk" author="brogres">
+        <addNotNullConstraint tableName="workout_set" columnName="exercise_id" columnDataType="bigint"/>
+        <addForeignKeyConstraint baseTableName="workout_set" baseColumnNames="exercise_id"
+                                 constraintName="fk_workout_set_exercise"
+                                 referencedTableName="exercise" referencedColumnNames="id"/>
+    </changeSet>
+
+    <!-- Drop old exercise name column -->
+    <changeSet id="010-workout-set-drop-exercise-name" author="brogres">
+        <dropColumn tableName="workout_set" columnName="exercise"/>
+    </changeSet>
+
+    <!-- Cleanup: remap OHP maszyna/hantle to catalog exercises, then delete orphan user exercises -->
+    <changeSet id="010-cleanup-kapiet-ohp-exercises" author="brogres" context="dev">
+        <sql dbms="h2,postgresql" splitStatements="true" stripComments="true" endDelimiter=";">
+            -- Remap "OHP maszyna" -> "Machine Overhead Press" (catalog)
+            UPDATE workout_set
+            SET exercise_id = (SELECT id FROM exercise WHERE user_id IS NULL AND name = 'Machine Overhead Press')
+            WHERE exercise_id IN (
+                SELECT id FROM exercise
+                WHERE user_id = (SELECT id FROM app_user WHERE LOWER(nick) = 'kapiet')
+                  AND name = 'OHP maszyna'
+            );
+
+            -- Remap "OHP hantle" -> "Dumbbell Overhead Press" (catalog)
+            UPDATE workout_set
+            SET exercise_id = (SELECT id FROM exercise WHERE user_id IS NULL AND name = 'Dumbbell Overhead Press')
+            WHERE exercise_id IN (
+                SELECT id FROM exercise
+                WHERE user_id = (SELECT id FROM app_user WHERE LOWER(nick) = 'kapiet')
+                  AND name = 'OHP hantle'
+            );
+
+            -- Now safe to delete the orphan user exercises
+            DELETE FROM exercise
+            WHERE user_id = (SELECT id FROM app_user WHERE LOWER(nick) = 'kapiet')
+              AND name IN ('OHP maszyna', 'OHP hantle');
         </sql>
     </changeSet>
 

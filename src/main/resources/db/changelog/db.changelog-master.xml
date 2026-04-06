@@ -16,7 +16,5 @@ http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
     <include file="db/changelog/changes/008-dev-seed-workouts-owner-kapiet.xml"/>
     <include file="db/changelog/changes/009-jungle-gym-bar-kapiet.xml"/>
     <include file="db/changelog/changes/010-catalog-exercise.xml"/>
-    <include file="db/changelog/changes/011-user-exercise.xml"/>
-    <include file="db/changelog/changes/012-exercise-unify-workout-set-fk.xml"/>
 
 </databaseChangeLog>
