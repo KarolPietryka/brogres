@@ -22,7 +22,7 @@ public final class WorkoutResponseDtos {
             List<WorkoutExerciseViewDto> exercisePlan) {
     }
 
-    /** {@link WorkoutSetStatus} for FE styling (PLANNED / NEXT / DONE). */
+    /** {@link WorkoutSetStatus} for FE styling (PLANNED / DONE). */
     public record WorkoutExerciseViewDto(
             String bodyPartName,
             String name,
@@ -35,8 +35,9 @@ public final class WorkoutResponseDtos {
 
     /**
      * GET /workout/prefill — flat {@code bodyPart} list (same per-row shape as {@link WorkoutSubmitRequestDto.WorkoutExerciseDto}).
-     * When today’s workout exists: service maps persisted {@code DONE} rows to {@code PLANNED} in the DTO, then picks one {@code NEXT}.
-     * When it does not: synthetic plan from the last session (see service).
+     * When today’s workout exists: rows are returned with their persisted statuses ({@code DONE} / {@code PLANNED}); the FE
+     * derives the progress-bar position from the count of leading {@code DONE} rows.
+     * When it does not: synthetic plan from the last session (all rows as {@code PLANNED}) — see service.
      */
     public record WorkoutPrefillDto(List<WorkoutExerciseViewDto> bodyPart) {
         public static WorkoutPrefillDto empty() {

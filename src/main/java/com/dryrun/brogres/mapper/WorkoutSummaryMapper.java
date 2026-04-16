@@ -23,21 +23,22 @@ public interface WorkoutSummaryMapper {
         return mapSetsToExerciseViews(orderedSets(workout, false), null);
     }
 
-    /** Today’s plan slice ({@link WorkoutSetStatus#PLANNED} / {@link WorkoutSetStatus#NEXT}). */
+    /** Today’s plan slice ({@link WorkoutSetStatus#PLANNED}). */
     default List<WorkoutExerciseViewDto> toExercisePlan(Workout workout) {
         return mapSetsToExerciseViews(orderedSets(workout, true), null);
     }
 
     /**
-     * Last session’s executed sets as a synthetic plan (DTO rows start as {@link WorkoutSetStatus#PLANNED}).
-     * Used for prefill when there is no workout row for today yet.
+     * Last session’s executed sets as a synthetic plan (DTO rows forced to {@link WorkoutSetStatus#PLANNED}).
+     * Used for prefill when there is no workout row for today yet (progress bar starts at the top).
      */
     default List<WorkoutExerciseViewDto> toPrefillFromPreviousSession(Workout workout) {
         return mapSetsToExerciseViews(orderedSets(workout, false), WorkoutSetStatus.PLANNED);
     }
 
     /**
-     * All sets for today’s workout (DONE + PLANNED + NEXT), for GET /workout/prefill when today’s session exists.
+     * All sets for today’s workout (DONE + PLANNED), for GET /workout/prefill when today’s session exists.
+     * FE derives progress-bar position from the count of leading DONE rows.
      */
     default List<WorkoutExerciseViewDto> toPrefillTodayFullWorkout(Workout workout) {
         List<WorkoutSet> all = workout.getSets().stream()
@@ -48,13 +49,9 @@ public interface WorkoutSummaryMapper {
 
     private List<WorkoutSet> orderedSets(Workout workout, boolean planSlice) {
         return workout.getSets().stream()
-                .filter(s -> planSlice == isPlanStatus(s.getStatus()))
+                .filter(s -> planSlice == (s.getStatus() == WorkoutSetStatus.PLANNED))
                 .sorted(Comparator.comparingInt(WorkoutSet::getLineOrder).thenComparing(WorkoutSet::getId))
                 .toList();
-    }
-
-    private static boolean isPlanStatus(WorkoutSetStatus status) {
-        return status == WorkoutSetStatus.PLANNED || status == WorkoutSetStatus.NEXT;
     }
 
     /**

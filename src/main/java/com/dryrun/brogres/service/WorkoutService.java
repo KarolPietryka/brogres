@@ -1,7 +1,6 @@
 package com.dryrun.brogres.service;
 
 import com.dryrun.brogres.data.Workout;
-import com.dryrun.brogres.model.WorkoutResponseDtos.WorkoutExerciseViewDto;
 import com.dryrun.brogres.model.WorkoutResponseDtos.WorkoutPrefillDto;
 import com.dryrun.brogres.model.WorkoutResponseDtos.WorkoutSummaryDto;
 import com.dryrun.brogres.model.WorkoutSubmitRequestDto;
@@ -23,9 +22,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 
 @Slf4j
@@ -42,8 +39,8 @@ public class WorkoutService {
 
     /**
      * Full replace for today: delete all existing sets for the day’s workout, then insert the POST payload.
-     * Status comes from the client except {@link WorkoutSetStatus#NEXT}, which is stored as {@link WorkoutSetStatus#DONE}
-     * (the “current” set was just completed).
+     * Statuses are stored as-sent ({@link WorkoutSetStatus#PLANNED} / {@link WorkoutSetStatus#DONE});
+     * {@code null} defaults to {@link WorkoutSetStatus#DONE} (legacy clients that didn’t send a status).
      */
     @Transactional
     public Workout createWorkout(Long userId, WorkoutSubmitRequestDto request) {
@@ -69,7 +66,8 @@ public class WorkoutService {
     }
 
     /**
-     * Full replace of sets for an existing workout (any date). Used when editing a session from summary.
+     * Full replace of sets for an existing workout (any date). Used when editing a session from summary,
+     * and also called on every progress-bar / exercise drop on the FE (each drop = new snapshot).
      */
     @Transactional
     public Workout replaceWorkout(Long userId, Long workoutId, WorkoutSubmitRequestDto request) {
@@ -97,7 +95,8 @@ public class WorkoutService {
             workoutSet.setWeight(exerciseDto.weight());
             workoutSet.setRepetitions(exerciseDto.reps());
             workoutSet.setLineOrder(lineOrder++);
-            workoutSet.setStatus(persistStatusFromSubmit(exerciseDto.status()));
+            // Null status is treated as DONE for legacy clients (pre–progress-bar).
+            workoutSet.setStatus(exerciseDto.status() != null ? exerciseDto.status() : WorkoutSetStatus.DONE);
             setsToSave.add(workoutSet);
         }
         workoutSetRepository.saveAll(setsToSave);
@@ -153,18 +152,11 @@ public class WorkoutService {
     }
 
     /**
-     * Maps FE status to DB: only {@code NEXT} becomes {@link WorkoutSetStatus#DONE}; {@code null} defaults to DONE.
+     * Prefill for the next session: returns the actual per-set status ({@link WorkoutSetStatus#PLANNED}
+     * / {@link WorkoutSetStatus#DONE}) for today’s workout if one exists, or the previous session’s
+     * rows flattened to {@link WorkoutSetStatus#PLANNED} (progress bar at the top) when there is no
+     * workout for today yet.
      */
-    private static WorkoutSetStatus persistStatusFromSubmit(WorkoutSetStatus fromFe) {
-        if (fromFe == null) {
-            return WorkoutSetStatus.DONE;
-        }
-        if (fromFe == WorkoutSetStatus.NEXT) {
-            return WorkoutSetStatus.DONE;
-        }
-        return fromFe;
-    }
-
     @Transactional(readOnly = true)
     public WorkoutPrefillDto prefillWorkout(Long userId) {
         log.info("Prefill requested");
@@ -177,13 +169,14 @@ public class WorkoutService {
                 return WorkoutPrefillDto.empty();
             }
 
+            // Today's sets are returned with their persisted statuses — the bar position is derived on FE
+            // from the count of leading DONE rows.
             Workout todayWorkout = todayWorkoutOpt.get();
             var fullToday = workoutSummaryMapper.toPrefillTodayFullWorkout(todayWorkout);
-            var withNextMarked = markPrefillHeadAsNext(fullToday);
-
-            return new WorkoutPrefillDto(withNextMarked);
+            return new WorkoutPrefillDto(fullToday);
         }
 
+        // No workout today: clone previous session as a pure plan (everything PLANNED, bar at the top).
         Optional<Workout> previousWorkoutOpt =
                 workoutRepository.findFirstByUser_IdAndWorkoutDateLessThanOrderByWorkoutDateDesc(userId, today);
         if (previousWorkoutOpt.isEmpty()) {
@@ -192,76 +185,7 @@ public class WorkoutService {
 
         Workout previousWorkout = previousWorkoutOpt.get();
         var previousSessionAsPlan = workoutSummaryMapper.toPrefillFromPreviousSession(previousWorkout);
-        var withNextMarked = markPrefillHeadAsNext(previousSessionAsPlan);
-
-        return new WorkoutPrefillDto(withNextMarked);
-    }
-
-    /**
-     * For today’s workout prefill: rows persisted as {@link WorkoutSetStatus#DONE} are shown as {@link WorkoutSetStatus#PLANNED}
-     * in the DTO (queue / plan view), then {@link #markPrefillHeadAsNext} runs.
-     */
-    private static List<WorkoutExerciseViewDto> mapDoneToPlannedForPrefill(List<WorkoutExerciseViewDto> bodyPart) {
-        if (bodyPart == null || bodyPart.isEmpty()) {
-            return bodyPart;
-        }
-        return bodyPart.stream()
-                .map(e -> e.status() == WorkoutSetStatus.DONE
-                        ? new WorkoutExerciseViewDto(
-                                e.bodyPartName(),
-                                e.name(),
-                                e.exerciseId(),
-                                e.orderId(),
-                                e.weight(),
-                                e.reps(),
-                                WorkoutSetStatus.PLANNED)
-                        : e)
-                .toList();
-    }
-
-    /**
-     * Among plan rows only (PLANNED / NEXT), the first in global {@code orderId} order becomes {@link WorkoutSetStatus#NEXT}
-     * in the DTO; other plan rows become {@link WorkoutSetStatus#PLANNED}. {@link WorkoutSetStatus#DONE} rows are left as-is
-     * (today’s prefill should call {@link #mapDoneToPlannedForPrefill} first so DONE does not appear as completed in the modal).
-     */
-    private static List<WorkoutExerciseViewDto> markPrefillHeadAsNext(List<WorkoutExerciseViewDto> bodyPart) {
-        if (bodyPart == null || bodyPart.isEmpty()) {
-            return bodyPart;
-        }
-        Optional<WorkoutExerciseViewDto> head = bodyPart.stream()
-                .filter(e -> e.status() == WorkoutSetStatus.PLANNED || e.status() == WorkoutSetStatus.NEXT)
-                .min(PREFILL_PLAN_ROW_ORDER);
-        if (head.isEmpty()) {
-            return bodyPart;
-        }
-        WorkoutExerciseViewDto h = head.get();
-        return bodyPart.stream()
-                .map(e -> {
-                    if (e.status() == WorkoutSetStatus.DONE) {
-                        return e;
-                    }
-                    // Change only head row to NEXT, all others keep PLANNED.
-                    WorkoutSetStatus s = samePlanRow(e, h) ? WorkoutSetStatus.NEXT : WorkoutSetStatus.PLANNED;
-                    return new WorkoutExerciseViewDto(
-                            e.bodyPartName(), e.name(), e.exerciseId(), e.orderId(), e.weight(), e.reps(), s);
-                })
-                .toList();
-    }
-
-    private static final Comparator<WorkoutExerciseViewDto> PREFILL_PLAN_ROW_ORDER =
-            Comparator.comparingInt(WorkoutExerciseViewDto::orderId)
-                    .thenComparing(WorkoutExerciseViewDto::bodyPartName)
-                    .thenComparing(WorkoutExerciseViewDto::name)
-                    .thenComparing(WorkoutExerciseViewDto::weight, Comparator.nullsFirst(Comparator.naturalOrder()))
-                    .thenComparingInt(WorkoutExerciseViewDto::reps);
-
-    private static boolean samePlanRow(WorkoutExerciseViewDto a, WorkoutExerciseViewDto b) {
-        return a.orderId() == b.orderId()
-                && a.bodyPartName().equals(b.bodyPartName())
-                && a.name().equals(b.name())
-                && Objects.equals(a.exerciseId(), b.exerciseId())
-                && Objects.equals(a.weight(), b.weight())
-                && a.reps() == b.reps();
+        return new WorkoutPrefillDto(previousSessionAsPlan);
     }
 
     @Transactional(readOnly = true)

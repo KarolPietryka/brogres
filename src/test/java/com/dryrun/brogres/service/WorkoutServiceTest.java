@@ -189,16 +189,17 @@ class WorkoutServiceTest {
     }
 
     /**
-     * Only {@link WorkoutSetStatus#NEXT} from the client is stored as {@link WorkoutSetStatus#DONE}; other statuses pass through.
+     * Client-sent statuses pass through as-is: PLANNED stays PLANNED, DONE stays DONE, {@code null} defaults to DONE.
+     * This is the new progress-bar contract — no NEXT→DONE mapping anymore.
      */
     @Test
-    void createWorkout_mapsNextToDoneAndPreservesPlannedAndDone() {
+    void createWorkout_persistsClientStatusesAsIsAndDefaultsNullToDone() {
         LocalDate today = LocalDate.now();
 
         WorkoutSubmitRequestDto request = new WorkoutSubmitRequestDto(List.of(
                 new WorkoutSubmitRequestDto.WorkoutExerciseDto("chest", "Done row", null, BigDecimal.TEN, 8, WorkoutSetStatus.DONE),
-                new WorkoutSubmitRequestDto.WorkoutExerciseDto("chest", "Next row", null, BigDecimal.TEN, 8, WorkoutSetStatus.NEXT),
-                new WorkoutSubmitRequestDto.WorkoutExerciseDto("chest", "Planned row", null, BigDecimal.TEN, 8, WorkoutSetStatus.PLANNED)
+                new WorkoutSubmitRequestDto.WorkoutExerciseDto("chest", "Planned row", null, BigDecimal.TEN, 8, WorkoutSetStatus.PLANNED),
+                new WorkoutSubmitRequestDto.WorkoutExerciseDto("chest", "Legacy null row", null, BigDecimal.TEN, 8, null)
         ));
 
         when(workoutFactory.createWorkout()).thenReturn(new Workout());
@@ -211,12 +212,13 @@ class WorkoutServiceTest {
 
         workoutService.createWorkout(USER_ID, request);
 
+        // Then: persisted rows keep the exact sent status; null defaults to DONE (legacy fallback).
         verify(workoutSetRepository).saveAll(setsCaptor.capture());
         List<WorkoutSet> saved = setsCaptor.getValue();
         assertThat(saved).hasSize(3);
         assertThat(saved.get(0).getStatus()).isEqualTo(WorkoutSetStatus.DONE);
-        assertThat(saved.get(1).getStatus()).isEqualTo(WorkoutSetStatus.DONE);
-        assertThat(saved.get(2).getStatus()).isEqualTo(WorkoutSetStatus.PLANNED);
+        assertThat(saved.get(1).getStatus()).isEqualTo(WorkoutSetStatus.PLANNED);
+        assertThat(saved.get(2).getStatus()).isEqualTo(WorkoutSetStatus.DONE);
     }
 
     /**
@@ -260,8 +262,12 @@ class WorkoutServiceTest {
         verifyNoMoreInteractions(workoutRepository, workoutSetRepository, workoutFactory, exerciseRepository);
     }
 
+    /**
+     * Today's prefill returns each set with its persisted status — no NEXT marker, no DONE→PLANNED rewrite.
+     * The FE derives the progress-bar position from the count of leading DONE rows.
+     */
     @Test
-    void prefillWorkout_whenWorkoutExistsForToday_returnsAllSetsAndNextOnFirstPlanRow() {
+    void prefillWorkout_whenWorkoutExistsForToday_returnsSetsWithPersistedStatus() {
         LocalDate today = LocalDate.now();
         when(workoutRepository.existsByWorkoutDateAndUser_Id(today, USER_ID)).thenReturn(true);
 
@@ -283,8 +289,9 @@ class WorkoutServiceTest {
 
         WorkoutPrefillDto result = workoutService.prefillWorkout(USER_ID);
 
+        // Then: the single PLANNED row is returned as PLANNED (bar at the top on FE — zero DONEs).
         assertThat(result.bodyPart()).containsExactly(
-                new WorkoutExerciseViewDto("chest", "Bench", 501L, 0, new BigDecimal("50"), 5, WorkoutSetStatus.NEXT));
+                new WorkoutExerciseViewDto("chest", "Bench", 501L, 0, new BigDecimal("50"), 5, WorkoutSetStatus.PLANNED));
 
         verify(workoutRepository).existsByWorkoutDateAndUser_Id(today, USER_ID);
         verify(workoutRepository).findByWorkoutDateAndUser_Id(today, USER_ID);
@@ -294,10 +301,10 @@ class WorkoutServiceTest {
     }
 
     /**
-     * Prefill maps persisted DONE to PLANNED in the DTO, then the first plan row in order becomes NEXT.
+     * Today's prefill returns DONE and PLANNED rows as-is (mixed sessions): no status rewriting on the BE.
      */
     @Test
-    void prefillWorkout_whenWorkoutExistsForToday_mapsDoneToPlannedThenFirstPlanRowNext() {
+    void prefillWorkout_whenWorkoutExistsForToday_returnsDoneAndPlannedWithoutRewrite() {
         LocalDate today = LocalDate.now();
         when(workoutRepository.existsByWorkoutDateAndUser_Id(today, USER_ID)).thenReturn(true);
 
@@ -330,8 +337,9 @@ class WorkoutServiceTest {
 
         WorkoutPrefillDto result = workoutService.prefillWorkout(USER_ID);
 
+        // Then: DONE and PLANNED pass through untouched — FE places the bar after the leading DONE rows.
         assertThat(result.bodyPart()).containsExactly(
-                new WorkoutExerciseViewDto("chest", "Squat", 502L, 0, new BigDecimal("100"), 5, WorkoutSetStatus.NEXT),
+                new WorkoutExerciseViewDto("chest", "Squat", 502L, 0, new BigDecimal("100"), 5, WorkoutSetStatus.DONE),
                 new WorkoutExerciseViewDto("chest", "Bench", 501L, 1, new BigDecimal("50"), 5, WorkoutSetStatus.PLANNED));
     }
 
@@ -400,8 +408,9 @@ class WorkoutServiceTest {
 
         WorkoutPrefillDto result = workoutService.prefillWorkout(USER_ID);
 
+        // Then: every row from the previous session is flattened to PLANNED — bar sits at the top for a fresh session.
         assertThat(result.bodyPart()).containsExactly(
-                new WorkoutExerciseViewDto("chest", "Bench Press", 601L, 0, new BigDecimal("60.0"), 8, WorkoutSetStatus.NEXT),
+                new WorkoutExerciseViewDto("chest", "Bench Press", 601L, 0, new BigDecimal("60.0"), 8, WorkoutSetStatus.PLANNED),
                 new WorkoutExerciseViewDto("chest", "Bench Press", 601L, 1, new BigDecimal("65.0"), 6, WorkoutSetStatus.PLANNED),
                 new WorkoutExerciseViewDto("back", "Pull-ups", 602L, 2, null, 10, WorkoutSetStatus.PLANNED));
 
