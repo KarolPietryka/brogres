@@ -1,0 +1,15 @@
+# Copy to application-pwd.yml (gitignored) and adjust.
+# Run: SPRING_PROFILES_ACTIVE=pwd
+#
+# Secrets: use env GRAFANA_LOKI_PASSWORD or paste only in local application-pwd.yml.
+
+spring:
+  config:
+    activate:
+      on-profile: pwd
+
+brogres:
+  grafana:
+    loki-url: ${GRAFANA_LOKI_URL:https://logs-prod-039.grafana.net/loki/api/v1/push}
+    loki-user: ${GRAFANA_LOKI_USER:1546145}
+    loki-password: ${GRAFANA_LOKI_PASSWORD:}

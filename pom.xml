@@ -96,6 +96,13 @@
 			<scope>provided</scope>
 		</dependency>
 
+		<!-- Loki appender — sends logs to Grafana Cloud (prod profile only) -->
+		<dependency>
+			<groupId>com.github.loki4j</groupId>
+			<artifactId>loki-logback-appender</artifactId>
+			<version>1.6.0</version>
+		</dependency>
+
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>

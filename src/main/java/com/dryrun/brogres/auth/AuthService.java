@@ -4,11 +4,13 @@ import com.dryrun.brogres.data.AppUser;
 import com.dryrun.brogres.repo.AppUserRepository;
 import com.dryrun.brogres.security.JwtService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -26,6 +28,7 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
         }
         String token = jwtService.createAccessToken(user.getId(), user.getNick());
+        log.info("Login OK: userId={}, nick={}", user.getId(), user.getNick());
         return new AuthDtos.AuthResponse(token, user.getNick());
     }
 
@@ -43,6 +46,7 @@ public class AuthService {
         user.setPasswordPlain(request.password());
         user = appUserRepository.save(user);
         String token = jwtService.createAccessToken(user.getId(), user.getNick());
+        log.info("Register OK: userId={}, nick={}", user.getId(), user.getNick());
         return new AuthDtos.AuthResponse(token, user.getNick());
     }
 }

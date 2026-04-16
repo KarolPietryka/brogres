@@ -15,6 +15,7 @@ import com.dryrun.brogres.repo.ExerciseRepository;
 import com.dryrun.brogres.repo.WorkoutRepository;
 import com.dryrun.brogres.repo.WorkoutSetRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +28,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class WorkoutService {
@@ -62,6 +64,7 @@ public class WorkoutService {
         }
 
         persistSetsForWorkout(workout, userId, request);
+        log.info("Workout saved: workoutId={}, date={}, sets={}", workout.getId(), workout.getWorkoutDate(), request.exercises().size());
         return workout;
     }
 
@@ -78,6 +81,7 @@ public class WorkoutService {
         workoutSetRepository.deleteAllByWorkoutId(workout.getId());
         workoutSetRepository.flush();
         persistSetsForWorkout(workout, userId, request);
+        log.info("Workout replaced: workoutId={}, date={}, sets={}", workout.getId(), workout.getWorkoutDate(), request.exercises().size());
         return workout;
     }
 
@@ -163,6 +167,7 @@ public class WorkoutService {
 
     @Transactional(readOnly = true)
     public WorkoutPrefillDto prefillWorkout(Long userId) {
+        log.info("Prefill requested");
         LocalDate today = LocalDate.now();
 
         boolean hasTodayWorkout = workoutRepository.existsByWorkoutDateAndUser_Id(today, userId);
@@ -261,8 +266,10 @@ public class WorkoutService {
 
     @Transactional(readOnly = true)
     public List<WorkoutSummaryDto> listWorkouts(Long userId) {
-        return workoutRepository.findAllByUser_IdOrderByWorkoutDateDesc(userId).stream()
+        List<WorkoutSummaryDto> result = workoutRepository.findAllByUser_IdOrderByWorkoutDateDesc(userId).stream()
                 .map(workoutSummaryMapper::toSummary)
                 .toList();
+        log.info("Listed workouts: count={}", result.size());
+        return result;
     }
 }

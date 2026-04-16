@@ -1,4 +1,6 @@
 HELP.md
+# Local Grafana Loki secrets — copy from application-pwd.example.yml
+src/main/resources/application-pwd.yml
 target/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/

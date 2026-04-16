@@ -19,3 +19,14 @@ spring:
   h2:
     console:
       enabled: false
+
+logging:
+  level:
+    com.dryrun.brogres: INFO
+
+# Loki push (see logback-spring.xml) — set on Render as env vars
+brogres:
+  grafana:
+    loki-url: ${GRAFANA_LOKI_URL}
+    loki-user: ${GRAFANA_LOKI_USER}
+    loki-password: ${GRAFANA_LOKI_PASSWORD}

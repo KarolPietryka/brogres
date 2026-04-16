@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!-- Resolved from application-*.yml (prod / pwd) or overridden by env -->
+    <springProperty name="lokiUrl" source="brogres.grafana.loki-url"/>
+    <springProperty name="lokiUser" source="brogres.grafana.loki-user"/>
+    <springProperty name="lokiPassword" source="brogres.grafana.loki-password"/>
+
+    <!-- ── stdout (always active) ── -->
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%12.12X{traceId}] [user:%-6.6X{userId}] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- ── Loki (prod or pwd profile) ── -->
+    <springProfile name="prod | pwd">
+        <appender name="LOKI" class="com.github.loki4j.logback.Loki4jAppender">
+            <http>
+                <url>${lokiUrl}</url>
+                <auth>
+                    <username>${lokiUser}</username>
+                    <password>${lokiPassword}</password>
+                </auth>
+            </http>
+            <format>
+                <label>
+                    <pattern>app=brogres,host=${HOSTNAME},level=%level</pattern>
+                </label>
+                <message>
+                    <pattern>%d{HH:mm:ss.SSS} [%12.12X{traceId}] [user:%-6.6X{userId}] %-5level %logger{36} - %msg%n</pattern>
+                </message>
+            </format>
+        </appender>
+    </springProfile>
+
+    <!-- ── root logger ── -->
+    <root level="INFO">
+        <appender-ref ref="STDOUT" />
+    </root>
+
+    <springProfile name="prod | pwd">
+        <root level="INFO">
+            <appender-ref ref="LOKI" />
+        </root>
+    </springProfile>
+
+</configuration>

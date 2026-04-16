@@ -8,6 +8,7 @@ import com.dryrun.brogres.model.ExerciseDtos.ExerciseRefDto;
 import com.dryrun.brogres.repo.AppUserRepository;
 import com.dryrun.brogres.repo.ExerciseRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +18,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ExercisePickerService {
@@ -80,6 +82,7 @@ public class ExercisePickerService {
 
         // Return id so FE can store exerciseId immediately
         Exercise saved = exerciseRepository.save(e);
+        log.info("Custom exercise created: id={}, bodyPart={}, name={}", saved.getId(), bodyPart, name);
         return new ExerciseRefDto(saved.getId(), saved.getName());
     }
 

@@ -39,5 +39,4 @@ spring:
 
 logging:
   level:
-    org.springframework.web: TRACE
-    org.springframework.web.servlet.DispatcherServlet: TRACE
+    com.dryrun.brogres: DEBUG
