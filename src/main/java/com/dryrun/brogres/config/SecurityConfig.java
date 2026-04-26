@@ -2,6 +2,9 @@ package com.dryrun.brogres.config;
 
 import com.dryrun.brogres.security.JwtAuthenticationFilter;
 import com.dryrun.brogres.security.MdcFilter;
+import com.dryrun.brogres.security.MethodNotSupportedBeforeAuthFilter;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -22,6 +25,7 @@ public class SecurityConfig {
 
     private final MdcFilter mdcFilter;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final RequestMappingHandlerMapping requestMappingHandlerMapping;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -39,6 +43,9 @@ public class SecurityConfig {
                         .anyRequest().authenticated())
                 .addFilterBefore(mdcFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(
+                        new MethodNotSupportedBeforeAuthFilter(requestMappingHandlerMapping),
+                        AuthorizationFilter.class)
                 .exceptionHandling(e -> e.authenticationEntryPoint((req, res, ex) -> {
                     res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                     res.setContentType("application/json;charset=UTF-8");
