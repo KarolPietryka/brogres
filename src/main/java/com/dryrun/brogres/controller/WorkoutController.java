@@ -63,6 +63,16 @@ public class WorkoutController {
     }
 
     /**
+     * Deletes the workout row and all its sets. Only the authenticated user’s **today** workout
+     * ({@code workoutDate} = server “today”) may be removed (other ids → 400).
+     */
+    @DeleteMapping("/{workoutId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteTodaysWorkout(@PathVariable("workoutId") Long workoutId) {
+        workoutService.deleteTodaysWorkout(SecurityUtils.requireUserId(), workoutId);
+    }
+
+    /**
      * Prefill for the next session: flat {@code bodyPart} list (same per-row shape as POST {@code exercises}); empty when nothing to clone.
      */
     @GetMapping("/prefill")

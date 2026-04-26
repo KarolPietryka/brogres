@@ -16,7 +16,10 @@ import com.dryrun.brogres.repo.WorkoutSetRepository;
 import com.dryrun.brogres.repo.WorkoutRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mapstruct.factory.Mappers;
@@ -32,7 +35,9 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.*;
 
 /**
@@ -71,8 +76,9 @@ class WorkoutServiceTest {
     void stubCurrentUser() {
         AppUser user = new AppUser();
         user.setId(USER_ID);
-        when(appUserRepository.findById(USER_ID)).thenReturn(Optional.of(user));
-        when(appUserRepository.getReferenceById(USER_ID)).thenReturn(user);
+        // Lenient: tests that only list/delete workouts never touch appUser — strict Mockito would mark stubs unused.
+        lenient().when(appUserRepository.findById(USER_ID)).thenReturn(Optional.of(user));
+        lenient().when(appUserRepository.getReferenceById(USER_ID)).thenReturn(user);
         // When: no pre-existing Exercise row — resolve falls through to save() for a new user-owned definition.
         when(exerciseRepository.findByUser_IdAndBodyPartAndName(eq(USER_ID), anyString(), anyString()))
                 .thenReturn(Optional.empty());
@@ -158,7 +164,8 @@ class WorkoutServiceTest {
         assertThat(result).isSameAs(savedWorkout);
 
         verify(workoutRepository, never()).findFirstByUser_IdAndWorkoutDateLessThanOrderByWorkoutDateDesc(any(), any());
-        verifyNoMoreInteractions(workoutRepository, workoutSetRepository, workoutFactory, exerciseRepository);
+        // exerciseRepository is used by resolve-by-name (create user-owned rows when not in catalog).
+        verifyNoMoreInteractions(workoutRepository, workoutSetRepository, workoutFactory);
     }
 
     /**
@@ -261,7 +268,7 @@ class WorkoutServiceTest {
         assertThat(persisted.getStatus()).isEqualTo(WorkoutSetStatus.DONE);
         assertThat(result).isSameAs(existing);
 
-        verifyNoMoreInteractions(workoutRepository, workoutSetRepository, workoutFactory, exerciseRepository);
+        verifyNoMoreInteractions(workoutRepository, workoutSetRepository, workoutFactory);
     }
 
     /**
@@ -598,6 +605,56 @@ class WorkoutServiceTest {
     }
 
     /**
+     * When: the workout is owned by the user, dated today, and the id is valid.
+     * Then: all sets for that workout are removed and the {@link Workout} row is deleted.
+     */
+    @Test
+    void deleteTodaysWorkout_whenOwnerAndDateToday_deletesSetsAndRow() {
+        when(workoutRepository.findById(99L))
+                .thenReturn(Optional.of(ownedWorkout(99L, LocalDate.now())));
+
+        workoutService.deleteTodaysWorkout(USER_ID, 99L);
+
+        verify(workoutSetRepository, times(1)).deleteAllByWorkoutId(99L);
+        verify(workoutSetRepository, times(1)).flush();
+        verify(workoutRepository, times(1)).deleteById(99L);
+    }
+
+    /**
+     * When: the workout is not for “today” (e.g. historical session id).
+     * Then: 400 and no delete.
+     */
+    @Test
+    void deleteTodaysWorkout_whenNotTodayDate_throwsBadRequest() {
+        when(workoutRepository.findById(7L))
+                .thenReturn(Optional.of(ownedWorkout(7L, LocalDate.now().minusDays(3))));
+
+        Executable run = () -> workoutService.deleteTodaysWorkout(USER_ID, 7L);
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, run);
+        assertThat(ex.getStatusCode().value()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        verify(workoutSetRepository, never()).deleteAllByWorkoutId(anyLong());
+        verify(workoutRepository, never()).deleteById(anyLong());
+    }
+
+    /**
+     * When: the workout belongs to another user.
+     * Then: 404 (not found) and no delete.
+     */
+    @Test
+    void deleteTodaysWorkout_whenOtherUser_throwsNotFound() {
+        AppUser other = new AppUser();
+        other.setId(999L);
+        Workout w = new Workout();
+        w.setId(3L);
+        w.setUser(other);
+        w.setWorkoutDate(LocalDate.now());
+        when(workoutRepository.findById(3L)).thenReturn(Optional.of(w));
+
+        assertThrows(ResponseStatusException.class, () -> workoutService.deleteTodaysWorkout(USER_ID, 3L));
+        verify(workoutSetRepository, never()).deleteAllByWorkoutId(anyLong());
+    }
+
+    /**
      * When: two DONE rows repeat the same exercise id (realistic duplicate sets).
      * Then: {@code planKey} preserves order and repetition (e.g. {@code "601,601"}).
      */
@@ -621,6 +678,16 @@ class WorkoutServiceTest {
             assertThat(t.planKey()).isEqualTo("601,601");
             assertThat(t.bodyPart()).hasSize(2);
         });
+    }
+
+    private static Workout ownedWorkout(long workoutId, LocalDate date) {
+        AppUser u = new AppUser();
+        u.setId(USER_ID);
+        Workout w = new Workout();
+        w.setId(workoutId);
+        w.setUser(u);
+        w.setWorkoutDate(date);
+        return w;
     }
 
     /** Builds a persisted-shape {@link Workout} with one DONE set for template-list tests. */

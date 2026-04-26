@@ -195,6 +195,27 @@ public class WorkoutService {
         return new WorkoutPrefillDto(previousSessionAsPlan);
     }
 
+    /**
+     * Removes today’s workout for the current user: deletes all {@link WorkoutSet} lines then the {@link Workout} row.
+     * Only a workout with {@code workoutDate == today} (server calendar) and owned by {@code userId} may be deleted.
+     */
+    @Transactional
+    public void deleteTodaysWorkout(Long userId, Long workoutId) {
+        Workout workout = workoutRepository.findById(workoutId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Workout not found"));
+        if (!workout.getUser().getId().equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Workout not found");
+        }
+        LocalDate today = LocalDate.now();
+        if (!workout.getWorkoutDate().equals(today)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only today's workout can be deleted");
+        }
+        workoutSetRepository.deleteAllByWorkoutId(workoutId);
+        workoutSetRepository.flush();
+        workoutRepository.deleteById(workoutId);
+        log.info("Workout deleted: workoutId={}, date={}", workoutId, today);
+    }
+
     @Transactional(readOnly = true)
     public List<WorkoutSummaryDto> listWorkouts(Long userId) {
         List<WorkoutSummaryDto> result = workoutRepository.findAllByUser_IdOrderByWorkoutDateDesc(userId).stream()
