@@ -1,6 +1,7 @@
 package com.dryrun.brogres.service;
 
 import com.dryrun.brogres.data.Workout;
+import com.dryrun.brogres.model.WorkoutResponseDtos.RecentPlanTemplateDto;
 import com.dryrun.brogres.model.WorkoutResponseDtos.WorkoutPrefillDto;
 import com.dryrun.brogres.model.WorkoutResponseDtos.WorkoutSummaryDto;
 import com.dryrun.brogres.model.WorkoutSubmitRequestDto;
@@ -13,6 +14,7 @@ import com.dryrun.brogres.repo.AppUserRepository;
 import com.dryrun.brogres.repo.ExerciseRepository;
 import com.dryrun.brogres.repo.WorkoutRepository;
 import com.dryrun.brogres.repo.WorkoutSetRepository;
+import com.dryrun.brogres.util.WorkoutPlanUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -29,6 +31,11 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 public class WorkoutService {
+
+    /**
+     * Caps distinct templates per response (limits payload size; extra historical patterns are dropped after sort).
+     */
+    private static final int RECENT_PLAN_TEMPLATES_LIMIT = 12;
 
     private final WorkoutFactory workoutFactory;
     private final AppUserRepository appUserRepository;
@@ -195,5 +202,38 @@ public class WorkoutService {
                 .toList();
         log.info("Listed workouts: count={}", result.size());
         return result;
+    }
+
+    /**
+     * Past workouts only ({@code workoutDate} &lt; today), grouped by full-session exercise-id signature
+     * (see {@link com.dryrun.brogres.util.WorkoutPlanUtils#calcSignature(Workout)}); per signature the latest session;
+     * sorted by that session date descending; capped.
+     */
+    @Transactional(readOnly = true)
+    public List<RecentPlanTemplateDto> listRecentPlanTemplates(Long userId) {
+        // Today defines the cutoff: carousel is built from closed history only (strictly before this date).
+        LocalDate today = LocalDate.now();
+        // Newest past sessions first so the first time we see a signature we already hold its latest workout.
+        List<Workout> pastNewestFirst =
+                workoutRepository.findAllByUser_IdAndWorkoutDateLessThanOrderByWorkoutDateDesc(userId, today);
+
+        List<Workout> ordered = WorkoutPlanUtils.latestWorkoutPerPlanKeyDescending(pastNewestFirst);
+
+        // Map each winning session to a DTO: bodyPart matches global prefill-from-history (all PLANNED rows for the editor).
+        List<RecentPlanTemplateDto> out = ordered.stream()
+                .limit(RECENT_PLAN_TEMPLATES_LIMIT)
+                .map(w -> {
+                    String planKey = WorkoutPlanUtils.calcSignature(w);
+                    var bodyPart = workoutSummaryMapper.toPrefillFromPreviousSession(w);
+                    return new RecentPlanTemplateDto(
+                            planKey,
+                            w.getWorkoutDate(),
+                            w.getId(),
+                            null,
+                            bodyPart);
+                })
+                .toList();
+        log.info("Recent plan templates: userId={}, count={}", userId, out.size());
+        return out;
     }
 }

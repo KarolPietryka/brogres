@@ -23,4 +23,12 @@ public interface WorkoutRepository extends JpaRepository<Workout, Long> {
 
     @EntityGraph(attributePaths = "sets")
     List<Workout> findAllByUser_IdOrderByWorkoutDateAsc(Long userId);
+
+    /**
+     * Past workouts for the plan-template carousel: {@code workoutDate} strictly before {@code beforeDate}
+     * (pass today to exclude the current day). Ordered newest-first. {@code EntityGraph} loads {@code sets}
+     * in the same round-trip so the service can compute signatures and snapshots without per-workout set queries.
+     */
+    @EntityGraph(attributePaths = "sets")
+    List<Workout> findAllByUser_IdAndWorkoutDateLessThanOrderByWorkoutDateDesc(Long userId, LocalDate beforeDate);
 }

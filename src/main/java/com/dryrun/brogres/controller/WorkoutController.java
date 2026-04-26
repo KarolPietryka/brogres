@@ -1,6 +1,7 @@
 package com.dryrun.brogres.controller;
 
 import com.dryrun.brogres.data.Workout;
+import com.dryrun.brogres.model.WorkoutResponseDtos.RecentPlanTemplateDto;
 import com.dryrun.brogres.model.WorkoutResponseDtos.WorkoutPrefillDto;
 import com.dryrun.brogres.model.WorkoutResponseDtos.WorkoutSummaryDto;
 import com.dryrun.brogres.model.ExerciseDtos.CreateExerciseRequest;
@@ -67,6 +68,16 @@ public class WorkoutController {
     @GetMapping("/prefill")
     public WorkoutPrefillDto prefillWorkout() {
         return workoutService.prefillWorkout(SecurityUtils.requireUserId());
+    }
+
+    /**
+     * GET /workout/recent-plan-templates — carousel data for Today: distinct past signatures, each with a full
+     * {@code bodyPart} snapshot (same row shape as {@code GET /workout/prefill}). Caller is the authenticated user;
+     * no query parameters on MVP.
+     */
+    @GetMapping("/recent-plan-templates")
+    public List<RecentPlanTemplateDto> recentPlanTemplates() {
+        return workoutService.listRecentPlanTemplates(SecurityUtils.requireUserId());
     }
 
 }

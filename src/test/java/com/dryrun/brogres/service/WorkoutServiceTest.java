@@ -3,6 +3,7 @@ package com.dryrun.brogres.service;
 import com.dryrun.brogres.data.AppUser;
 import com.dryrun.brogres.data.Exercise;
 import com.dryrun.brogres.data.Workout;
+import com.dryrun.brogres.model.WorkoutResponseDtos.RecentPlanTemplateDto;
 import com.dryrun.brogres.model.WorkoutResponseDtos.WorkoutExerciseViewDto;
 import com.dryrun.brogres.model.WorkoutResponseDtos.WorkoutPrefillDto;
 import com.dryrun.brogres.data.WorkoutSet;
@@ -31,6 +32,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 /**
@@ -489,5 +491,159 @@ class WorkoutServiceTest {
         e.setName(name);
         e.setSortOrder(0);
         return e;
+    }
+
+    // --- WorkoutService.listRecentPlanTemplates (carousel / recent-plan-templates) ---
+
+    /**
+     * When: two past days with different DONE signatures; repository returns newest-first.
+     * Then: two templates, first row is the more recent {@code lastUsedDate}; each {@code bodyPart} is PLANNED prefill.
+     */
+    @Test
+    void listRecentPlanTemplates_whenTwoDistinctSignatures_ordersByLastUsedDateDesc() {
+        LocalDate today = LocalDate.now();
+        LocalDate newer = today.minusDays(1);
+        LocalDate older = today.minusDays(3);
+
+        Workout wNew = workoutWithSingleDone(newer, 10L, 700L, "chest", "Fly");
+        Workout wOld = workoutWithSingleDone(older, 11L, 800L, "back", "Row");
+
+        when(workoutRepository.findAllByUser_IdAndWorkoutDateLessThanOrderByWorkoutDateDesc(eq(USER_ID), eq(today)))
+                .thenReturn(List.of(wNew, wOld));
+
+        List<RecentPlanTemplateDto> result = workoutService.listRecentPlanTemplates(USER_ID);
+
+        verify(workoutRepository).findAllByUser_IdAndWorkoutDateLessThanOrderByWorkoutDateDesc(USER_ID, today);
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).lastUsedDate()).isEqualTo(newer);
+        assertThat(result.get(0).planKey()).isEqualTo("700");
+        assertThat(result.get(0).sourceWorkoutId()).isEqualTo(10L);
+        assertThat(result.get(0).bodyPart()).singleElement()
+                .extracting(WorkoutExerciseViewDto::status)
+                .isEqualTo(WorkoutSetStatus.PLANNED);
+
+        assertThat(result.get(1).lastUsedDate()).isEqualTo(older);
+        assertThat(result.get(1).planKey()).isEqualTo("800");
+        assertThat(result.get(1).sourceWorkoutId()).isEqualTo(11L);
+    }
+
+    /**
+     * When: same exercise-id sequence on two past days; scan is newest-first.
+     * Then: one template — the newer workout id and snapshot; older duplicate is dropped.
+     */
+    @Test
+    void listRecentPlanTemplates_whenSameSignatureTwice_keepsLatestSessionOnly() {
+        LocalDate today = LocalDate.now();
+        LocalDate recent = today.minusDays(2);
+        LocalDate earlier = today.minusDays(5);
+
+        Workout wRecent = workoutWithSingleDone(recent, 20L, 900L, "legs", "Squat");
+        Workout wEarlier = workoutWithSingleDone(earlier, 21L, 900L, "legs", "Squat");
+
+        when(workoutRepository.findAllByUser_IdAndWorkoutDateLessThanOrderByWorkoutDateDesc(eq(USER_ID), eq(today)))
+                .thenReturn(List.of(wRecent, wEarlier));
+
+        List<RecentPlanTemplateDto> result = workoutService.listRecentPlanTemplates(USER_ID);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).sourceWorkoutId()).isEqualTo(20L);
+        assertThat(result.get(0).lastUsedDate()).isEqualTo(recent);
+        assertThat(result.get(0).planKey()).isEqualTo("900");
+    }
+
+    /**
+     * When: repository returns no past workouts.
+     * Then: empty list (no error).
+     */
+    @Test
+    void listRecentPlanTemplates_whenNoPastWorkouts_returnsEmpty() {
+        LocalDate today = LocalDate.now();
+        when(workoutRepository.findAllByUser_IdAndWorkoutDateLessThanOrderByWorkoutDateDesc(eq(USER_ID), eq(today)))
+                .thenReturn(List.of());
+
+        assertThat(workoutService.listRecentPlanTemplates(USER_ID)).isEmpty();
+    }
+
+    /**
+     * When: a past workout has only PLANNED rows (signature still uses full row order, not DONE-only).
+     * Then: one template with non-empty {@code planKey}; {@code bodyPart} stays empty because prefill clone uses DONE rows only.
+     */
+    @Test
+    void listRecentPlanTemplates_whenOnlyPlannedRows_stillGroupsBySignatureWithEmptyPrefillBody() {
+        LocalDate today = LocalDate.now();
+        LocalDate d = today.minusDays(1);
+        Workout w = new Workout();
+        w.setId(30L);
+        w.setWorkoutDate(d);
+        WorkoutSet planned = new WorkoutSet();
+        planned.setId(1L);
+        planned.setWorkout(w);
+        planned.setBodyPart("chest");
+        planned.setExercise(ex(1L, "chest", "X"));
+        planned.setWeight(BigDecimal.ONE);
+        planned.setRepetitions(1);
+        planned.setLineOrder(0);
+        planned.setStatus(WorkoutSetStatus.PLANNED);
+        w.getSets().add(planned);
+
+        when(workoutRepository.findAllByUser_IdAndWorkoutDateLessThanOrderByWorkoutDateDesc(eq(USER_ID), eq(today)))
+                .thenReturn(List.of(w));
+
+        List<RecentPlanTemplateDto> result = workoutService.listRecentPlanTemplates(USER_ID);
+        assertThat(result).singleElement().satisfies(t -> {
+            assertThat(t.planKey()).isEqualTo("1");
+            assertThat(t.sourceWorkoutId()).isEqualTo(30L);
+            assertThat(t.bodyPart()).isEmpty();
+        });
+    }
+
+    /**
+     * When: two DONE rows repeat the same exercise id (realistic duplicate sets).
+     * Then: {@code planKey} preserves order and repetition (e.g. {@code "601,601"}).
+     */
+    @Test
+    void listRecentPlanTemplates_whenRepeatedExerciseId_includesRepetitionInPlanKey() {
+        LocalDate today = LocalDate.now();
+        LocalDate d = today.minusDays(1);
+        Workout w = new Workout();
+        w.setId(40L);
+        w.setWorkoutDate(d);
+        WorkoutSet s1 = setDone(w, 0, 601L, "chest", "Bench");
+        WorkoutSet s2 = setDone(w, 1, 601L, "chest", "Bench");
+        w.getSets().addAll(List.of(s1, s2));
+
+        when(workoutRepository.findAllByUser_IdAndWorkoutDateLessThanOrderByWorkoutDateDesc(eq(USER_ID), eq(today)))
+                .thenReturn(List.of(w));
+
+        List<RecentPlanTemplateDto> result = workoutService.listRecentPlanTemplates(USER_ID);
+
+        assertThat(result).singleElement().satisfies(t -> {
+            assertThat(t.planKey()).isEqualTo("601,601");
+            assertThat(t.bodyPart()).hasSize(2);
+        });
+    }
+
+    /** Builds a persisted-shape {@link Workout} with one DONE set for template-list tests. */
+    private static Workout workoutWithSingleDone(LocalDate date, long workoutId, long exerciseId, String part, String name) {
+        Workout w = new Workout();
+        w.setId(workoutId);
+        w.setWorkoutDate(date);
+        WorkoutSet s = setDone(w, 0, exerciseId, part, name);
+        w.getSets().add(s);
+        return w;
+    }
+
+    /** One DONE {@link WorkoutSet} linked to {@code w}, ordered by {@code lineOrder}. */
+    private static WorkoutSet setDone(Workout w, int lineOrder, long exerciseId, String part, String name) {
+        WorkoutSet s = new WorkoutSet();
+        s.setId(lineOrder + 1000L);
+        s.setWorkout(w);
+        s.setBodyPart(part);
+        s.setExercise(ex(exerciseId, part, name));
+        s.setWeight(BigDecimal.TEN);
+        s.setRepetitions(5);
+        s.setLineOrder(lineOrder);
+        s.setStatus(WorkoutSetStatus.DONE);
+        return s;
     }
 }

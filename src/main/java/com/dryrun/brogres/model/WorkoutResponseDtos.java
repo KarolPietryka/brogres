@@ -45,6 +45,25 @@ public final class WorkoutResponseDtos {
         }
     }
 
+    /**
+     * JSON element for {@code GET /workout/recent-plan-templates}: one carousel slide.
+     * <ul>
+     *   <li>{@code planKey} — dedup/sort key: ordered exercise ids from DONE sets only (brief: "signature").</li>
+     *   <li>{@code lastUsedDate} / {@code sourceWorkoutId} — which historical session the snapshot came from.</li>
+     *   <li>{@code bodyPart} — editor-ready rows (typically all {@code PLANNED}), same contract as prefill.</li>
+     * </ul>
+     *
+     * @param planKey stable signature string (ordered exercise ids, repetitions matter)
+     * @param label optional display hint; may be {@code null}
+     */
+    public record RecentPlanTemplateDto(
+            String planKey,
+            LocalDate lastUsedDate,
+            long sourceWorkoutId,
+            String label,
+            List<WorkoutExerciseViewDto> bodyPart) {
+    }
+
     /** GET /brogres/graph — one point per workout day in the current focus series (see {@code WorkoutGraphService}). */
     public record GraphVolumePointDto(LocalDate workoutDay, BigDecimal volume) {
     }
