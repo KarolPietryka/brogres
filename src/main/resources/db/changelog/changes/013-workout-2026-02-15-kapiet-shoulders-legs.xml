@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                                http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- New catalog exercises: distinct plan signature vs existing dev seeds. -->
+    <changeSet id="013-catalog-shoulders-legs-seed" author="brogres">
+        <sql dbms="h2,postgresql" splitStatements="true" stripComments="true" endDelimiter=";">
+            INSERT INTO exercise (user_id, body_part, name, sort_order)
+            SELECT NULL, 'shoulders', 'Face Pull', 10
+            WHERE NOT EXISTS (
+                SELECT 1 FROM exercise e
+                WHERE e.user_id IS NULL AND e.body_part = 'shoulders' AND e.name = 'Face Pull'
+            );
+
+            INSERT INTO exercise (user_id, body_part, name, sort_order)
+            SELECT NULL, 'legs', 'Leg Press', 5
+            WHERE NOT EXISTS (
+                SELECT 1 FROM exercise e
+                WHERE e.user_id IS NULL AND e.body_part = 'legs' AND e.name = 'Leg Press'
+            );
+        </sql>
+    </changeSet>
+
+    <!-- kapiet: 2026-02-15 — short shoulders+legs day so GET /workout/recent-plan-templates gets another planKey. -->
+    <changeSet id="013-dev-workout-2026-02-15-kapiet" author="brogres" context="dev">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="1">
+                SELECT COUNT(*) FROM app_user WHERE LOWER(nick) = 'kapiet'
+            </sqlCheck>
+        </preConditions>
+        <sql dbms="h2,postgresql" splitStatements="true" stripComments="true" endDelimiter=";">
+            INSERT INTO workout (workout_date, created_by, modified_by, created_on, modified_on, user_id)
+            SELECT DATE '2026-02-15', NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, u.id
+            FROM app_user u
+            WHERE LOWER(u.nick) = 'kapiet'
+              AND NOT EXISTS (
+                SELECT 1 FROM workout w2
+                WHERE w2.user_id = u.id AND w2.workout_date = DATE '2026-02-15'
+              );
+
+            INSERT INTO workout_set (exercise_id, repetitions, body_part, weight, line_order, workout_id, status)
+            SELECT
+                (SELECT e.id FROM exercise e
+                 WHERE e.user_id IS NULL AND e.body_part = 'shoulders' AND e.name = 'Face Pull' LIMIT 1),
+                12, 'shoulders', 20.0, 0, w.id, 'DONE'
+            FROM workout w
+            INNER JOIN app_user u ON u.id = w.user_id AND LOWER(u.nick) = 'kapiet'
+            WHERE w.workout_date = DATE '2026-02-15'
+              AND NOT EXISTS (SELECT 1 FROM workout_set s WHERE s.workout_id = w.id AND s.line_order = 0);
+
+            INSERT INTO workout_set (exercise_id, repetitions, body_part, weight, line_order, workout_id, status)
+            SELECT
+                (SELECT e.id FROM exercise e
+                 WHERE e.user_id IS NULL AND e.body_part = 'legs' AND e.name = 'Leg Press' LIMIT 1),
+                10, 'legs', 90.0, 1, w.id, 'DONE'
+            FROM workout w
+            INNER JOIN app_user u ON u.id = w.user_id AND LOWER(u.nick) = 'kapiet'
+            WHERE w.workout_date = DATE '2026-02-15'
+              AND NOT EXISTS (SELECT 1 FROM workout_set s WHERE s.workout_id = w.id AND s.line_order = 1);
+
+            INSERT INTO workout_set (exercise_id, repetitions, body_part, weight, line_order, workout_id, status)
+            SELECT
+                (SELECT e.id FROM exercise e
+                 WHERE e.user_id IS NULL AND e.body_part = 'shoulders' AND e.name = 'Face Pull' LIMIT 1),
+                10, 'shoulders', 22.5, 2, w.id, 'DONE'
+            FROM workout w
+            INNER JOIN app_user u ON u.id = w.user_id AND LOWER(u.nick) = 'kapiet'
+            WHERE w.workout_date = DATE '2026-02-15'
+              AND NOT EXISTS (SELECT 1 FROM workout_set s WHERE s.workout_id = w.id AND s.line_order = 2);
+
+            INSERT INTO workout_set (exercise_id, repetitions, body_part, weight, line_order, workout_id, status)
+            SELECT
+                (SELECT e.id FROM exercise e
+                 WHERE e.user_id IS NULL AND e.body_part = 'legs' AND e.name = 'Leg Press' LIMIT 1),
+                8, 'legs', 100.0, 3, w.id, 'DONE'
+            FROM workout w
+            INNER JOIN app_user u ON u.id = w.user_id AND LOWER(u.nick) = 'kapiet'
+            WHERE w.workout_date = DATE '2026-02-15'
+              AND NOT EXISTS (SELECT 1 FROM workout_set s WHERE s.workout_id = w.id AND s.line_order = 3);
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>
