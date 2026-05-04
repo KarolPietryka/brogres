@@ -63,8 +63,4 @@ public final class WorkoutResponseDtos {
             String label,
             List<WorkoutExerciseViewDto> bodyPart) {
     }
-
-    /** GET /brogres/graph — one point per workout day in the current focus series (see {@code WorkoutGraphService}). */
-    public record GraphVolumePointDto(LocalDate workoutDay, BigDecimal volume) {
-    }
 }

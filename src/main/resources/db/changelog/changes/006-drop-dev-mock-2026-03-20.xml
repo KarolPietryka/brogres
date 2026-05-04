@@ -5,7 +5,7 @@
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
                                 http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
-    <!-- 001a: 1× chest + 1× back → dominant "back" (tie-break). That splits the chest block from 005 so /graph only showed 22.03 and 29.03. -->
+    <!-- 001a: 1× chest + 1× back → dominant "back" (tie-break). That splits the chest block from 005 for seeded dev scenario shape. -->
     <changeSet id="006-drop-dev-mock-2026-03-20" author="brogres" context="dev">
         <sql dbms="h2,postgresql" splitStatements="true" stripComments="true" endDelimiter=";">
             DELETE FROM workout_set
