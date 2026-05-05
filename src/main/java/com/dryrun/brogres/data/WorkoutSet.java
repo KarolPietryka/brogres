@@ -29,7 +29,7 @@ public class WorkoutSet {
     @Column(nullable = false)
     private String bodyPart;
 
-    @Column
+    @Column(nullable = false)
     private BigDecimal weight;
 
     /** Global line index within the workout (0, 1, …), set from request order when saving. */

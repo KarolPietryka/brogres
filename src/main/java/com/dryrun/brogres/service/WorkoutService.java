@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -99,7 +100,8 @@ public class WorkoutService {
             workoutSet.setWorkout(workout);
             workoutSet.setBodyPart(exerciseDto.bodyPartName());
             workoutSet.setExercise(resolveExerciseForRow(userId, exerciseDto));
-            workoutSet.setWeight(exerciseDto.weight());
+            // DB requires non-null weight; treat missing payload as zero (bodyweight-style logging).
+            workoutSet.setWeight(exerciseDto.weight() != null ? exerciseDto.weight() : BigDecimal.ZERO);
             workoutSet.setRepetitions(exerciseDto.reps());
             workoutSet.setLineOrder(lineOrder++);
             // Null status is treated as DONE for legacy clients (pre–progress-bar).

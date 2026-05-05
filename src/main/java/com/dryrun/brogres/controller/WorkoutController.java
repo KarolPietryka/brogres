@@ -7,9 +7,12 @@ import com.dryrun.brogres.model.WorkoutResponseDtos.WorkoutSummaryDto;
 import com.dryrun.brogres.model.ExerciseDtos.CreateExerciseRequest;
 import com.dryrun.brogres.model.ExerciseDtos.ExercisePickerDto;
 import com.dryrun.brogres.model.ExerciseDtos.ExerciseRefDto;
+import com.dryrun.brogres.model.ExerciseSeriesChartDtos.ExerciseSeriesPointDto;
+import com.dryrun.brogres.model.ExerciseSeriesChartDtos.ExerciseSeriesRequest;
 import com.dryrun.brogres.model.WorkoutSubmitRequestDto;
 import com.dryrun.brogres.security.SecurityUtils;
 import com.dryrun.brogres.service.ExercisePickerService;
+import com.dryrun.brogres.service.ExerciseSeriesChartService;
 import com.dryrun.brogres.service.WorkoutService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -28,6 +31,7 @@ public class WorkoutController {
 
     private final WorkoutService workoutService;
     private final ExercisePickerService exercisePickerService;
+    private final ExerciseSeriesChartService exerciseSeriesChartService;
 
     /**
      * Exercises for the add-workout picker: global catalog plus this user’s custom names for the body part.
@@ -88,6 +92,14 @@ public class WorkoutController {
     @GetMapping("/recent-plan-templates")
     public List<RecentPlanTemplateDto> recentPlanTemplates() {
         return workoutService.listRecentPlanTemplates(SecurityUtils.requireUserId());
+    }
+
+    /**
+     * Charts: per workout-day sums of weight and repetitions for one exercise (only DONE sets; filters in body).
+     */
+    @PostMapping("/graph/exercise-series")
+    public List<ExerciseSeriesPointDto> exerciseSeriesChart(@Valid @RequestBody ExerciseSeriesRequest request) {
+        return exerciseSeriesChartService.seriesPoints(SecurityUtils.requireUserId(), request);
     }
 
 }

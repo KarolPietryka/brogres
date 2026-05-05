@@ -79,12 +79,13 @@ class WorkoutServiceTest {
         // Lenient: tests that only list/delete workouts never touch appUser — strict Mockito would mark stubs unused.
         lenient().when(appUserRepository.findById(USER_ID)).thenReturn(Optional.of(user));
         lenient().when(appUserRepository.getReferenceById(USER_ID)).thenReturn(user);
+        // Lenient: tests that never resolve exercises must not trip strict unused-stub detection.
         // When: no pre-existing Exercise row — resolve falls through to save() for a new user-owned definition.
-        when(exerciseRepository.findByUser_IdAndBodyPartAndName(eq(USER_ID), anyString(), anyString()))
+        lenient().when(exerciseRepository.findByUser_IdAndBodyPartAndName(eq(USER_ID), anyString(), anyString()))
                 .thenReturn(Optional.empty());
-        when(exerciseRepository.findByUserIsNullAndBodyPartAndName(anyString(), anyString()))
+        lenient().when(exerciseRepository.findByUserIsNullAndBodyPartAndName(anyString(), anyString()))
                 .thenReturn(Optional.empty());
-        when(exerciseRepository.save(any(Exercise.class))).thenAnswer(invocation -> {
+        lenient().when(exerciseRepository.save(any(Exercise.class))).thenAnswer(invocation -> {
             Exercise ex = invocation.getArgument(0);
             if (ex.getId() == null) {
                 ex.setId(exerciseIdSeq.incrementAndGet());
@@ -154,7 +155,7 @@ class WorkoutServiceTest {
 
         assertThat(savedWorkoutSets.get(2).getExercise().getName()).isEqualTo("Pull-ups");
         assertThat(savedWorkoutSets.get(2).getBodyPart()).isEqualTo("back");
-        assertThat(savedWorkoutSets.get(2).getWeight()).isNull();
+        assertThat(savedWorkoutSets.get(2).getWeight()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(savedWorkoutSets.get(2).getRepetitions()).isEqualTo(10);
 
         assertThat(savedWorkoutSets.get(0).getLineOrder()).isZero();

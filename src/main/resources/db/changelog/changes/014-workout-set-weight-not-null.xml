@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                                http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- Align DB with spec: weight is required (0 allowed for bodyweight-style rows). -->
+    <changeSet id="014-workout-set-weight-not-null" author="brogres">
+        <sql dbms="h2,postgresql" splitStatements="true" stripComments="true" endDelimiter=";">
+            UPDATE workout_set SET weight = 0 WHERE weight IS NULL;
+        </sql>
+        <addNotNullConstraint tableName="workout_set" columnName="weight" columnDataType="numeric(19, 2)"/>
+    </changeSet>
+
+</databaseChangeLog>
