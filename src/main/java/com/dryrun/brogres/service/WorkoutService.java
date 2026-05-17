@@ -2,6 +2,7 @@ package com.dryrun.brogres.service;
 
 import com.dryrun.brogres.data.Workout;
 import com.dryrun.brogres.model.WorkoutResponseDtos.RecentPlanTemplateDto;
+import com.dryrun.brogres.model.WorkoutListEnvelopeDto;
 import com.dryrun.brogres.model.WorkoutResponseDtos.WorkoutPrefillDto;
 import com.dryrun.brogres.model.WorkoutResponseDtos.WorkoutSummaryDto;
 import com.dryrun.brogres.model.WorkoutSubmitRequestDto;
@@ -219,12 +220,14 @@ public class WorkoutService {
     }
 
     @Transactional(readOnly = true)
-    public List<WorkoutSummaryDto> listWorkouts(Long userId) {
-        List<WorkoutSummaryDto> result = workoutRepository.findAllByUser_IdOrderByWorkoutDateDesc(userId).stream()
+    public WorkoutListEnvelopeDto listWorkouts(Long userId) {
+        LocalDate serverToday = LocalDate.now();
+        List<WorkoutSummaryDto> workouts = workoutRepository.findAllByUser_IdOrderByWorkoutDateDesc(userId).stream()
                 .map(workoutSummaryMapper::toSummary)
                 .toList();
-        log.info("Listed workouts: count={}", result.size());
-        return result;
+        boolean hasWorkoutForToday = workouts.stream().anyMatch(w -> serverToday.equals(w.workoutDate()));
+        log.info("Listed workouts: count={}, hasWorkoutForToday={}", workouts.size(), hasWorkoutForToday);
+        return new WorkoutListEnvelopeDto(workouts, serverToday, hasWorkoutForToday);
     }
 
     /**

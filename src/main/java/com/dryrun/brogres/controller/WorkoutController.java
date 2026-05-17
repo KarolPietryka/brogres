@@ -2,8 +2,8 @@ package com.dryrun.brogres.controller;
 
 import com.dryrun.brogres.data.Workout;
 import com.dryrun.brogres.model.WorkoutResponseDtos.RecentPlanTemplateDto;
+import com.dryrun.brogres.model.WorkoutListEnvelopeDto;
 import com.dryrun.brogres.model.WorkoutResponseDtos.WorkoutPrefillDto;
-import com.dryrun.brogres.model.WorkoutResponseDtos.WorkoutSummaryDto;
 import com.dryrun.brogres.model.ExerciseDtos.CreateExerciseRequest;
 import com.dryrun.brogres.model.ExerciseDtos.ExercisePickerDto;
 import com.dryrun.brogres.model.ExerciseDtos.ExerciseRefDto;
@@ -49,7 +49,7 @@ public class WorkoutController {
     }
 
     @GetMapping
-    public List<WorkoutSummaryDto> listWorkouts() {
+    public WorkoutListEnvelopeDto listWorkouts() {
         return workoutService.listWorkouts(SecurityUtils.requireUserId());
     }
 
