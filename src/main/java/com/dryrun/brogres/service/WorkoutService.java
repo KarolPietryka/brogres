@@ -245,12 +245,12 @@ public class WorkoutService {
 
         List<Workout> ordered = WorkoutPlanUtils.latestWorkoutPerPlanKeyDescending(pastNewestFirst);
 
-        // Map each winning session to a DTO: bodyPart matches global prefill-from-history (all PLANNED rows for the editor).
+        // Map each winning session to a DTO: bodyPart includes DONE + PLANNED rows (editor snapshot).
         List<RecentPlanTemplateDto> out = ordered.stream()
                 .limit(RECENT_PLAN_TEMPLATES_LIMIT)
                 .map(w -> {
                     String planKey = WorkoutPlanUtils.calcSignature(w);
-                    var bodyPart = workoutSummaryMapper.toPrefillFromPreviousSession(w);
+                    var bodyPart = workoutSummaryMapper.toRecentPlanTemplateBody(w);
                     return new RecentPlanTemplateDto(
                             planKey,
                             w.getWorkoutDate(),

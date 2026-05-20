@@ -37,6 +37,17 @@ public interface WorkoutSummaryMapper {
     }
 
     /**
+     * Past session snapshot for {@code GET /workout/recent-plan-templates}: all rows (DONE + PLANNED),
+     * editor-ready with every line as {@link WorkoutSetStatus#PLANNED}.
+     */
+    default List<WorkoutExerciseViewDto> toRecentPlanTemplateBody(Workout workout) {
+        List<WorkoutSet> all = workout.getSets().stream()
+                .sorted(Comparator.comparingInt(WorkoutSet::getLineOrder).thenComparing(WorkoutSet::getId))
+                .toList();
+        return mapSetsToExerciseViews(all, WorkoutSetStatus.PLANNED);
+    }
+
+    /**
      * All sets for today’s workout (DONE + PLANNED), for GET /workout/prefill when today’s session exists.
      * FE derives progress-bar position from the count of leading DONE rows.
      */

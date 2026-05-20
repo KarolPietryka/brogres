@@ -600,11 +600,11 @@ class WorkoutServiceTest {
     }
 
     /**
-     * When: a past workout has only PLANNED rows (signature still uses full row order, not DONE-only).
-     * Then: one template with non-empty {@code planKey}; {@code bodyPart} stays empty because prefill clone uses DONE rows only.
+     * When: a past workout has only PLANNED rows.
+     * Then: one template with {@code bodyPart} containing those rows (carousel includes in-progress sessions).
      */
     @Test
-    void listRecentPlanTemplates_whenOnlyPlannedRows_stillGroupsBySignatureWithEmptyPrefillBody() {
+    void listRecentPlanTemplates_whenOnlyPlannedRows_includesRowsInBodyPart() {
         LocalDate today = LocalDate.now();
         LocalDate d = today.minusDays(1);
         Workout w = new Workout();
@@ -628,7 +628,11 @@ class WorkoutServiceTest {
         assertThat(result).singleElement().satisfies(t -> {
             assertThat(t.planKey()).isEqualTo("1");
             assertThat(t.sourceWorkoutId()).isEqualTo(30L);
-            assertThat(t.bodyPart()).isEmpty();
+            assertThat(t.bodyPart()).singleElement()
+                    .satisfies(row -> {
+                        assertThat(row.name()).isEqualTo("X");
+                        assertThat(row.status()).isEqualTo(WorkoutSetStatus.PLANNED);
+                    });
         });
     }
 
