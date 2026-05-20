@@ -23,13 +23,13 @@ public class WorkoutSet {
     @JoinColumn(name = "exercise_id", nullable = false)
     private Exercise exercise;
 
-    @Column(nullable = false)
-    private int repetitions;
+    @Column
+    private Integer repetitions;
 
     @Column(nullable = false)
     private String bodyPart;
 
-    @Column(nullable = false)
+    @Column
     private BigDecimal weight;
 
     /** Global line index within the workout (0, 1, …), set from request order when saving. */

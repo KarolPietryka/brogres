@@ -139,7 +139,6 @@ class WorkoutServiceTest {
         assertThat(savedWorkoutSets).allSatisfy(s -> {
             assertThat(s.getWorkout()).isSameAs(savedWorkout);
             assertThat(s.getExercise().getName()).isNotBlank();
-            assertThat(s.getRepetitions()).isPositive();
             assertThat(s.getStatus()).isEqualTo(WorkoutSetStatus.DONE);
         });
 
@@ -155,7 +154,7 @@ class WorkoutServiceTest {
 
         assertThat(savedWorkoutSets.get(2).getExercise().getName()).isEqualTo("Pull-ups");
         assertThat(savedWorkoutSets.get(2).getBodyPart()).isEqualTo("back");
-        assertThat(savedWorkoutSets.get(2).getWeight()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(savedWorkoutSets.get(2).getWeight()).isNull();
         assertThat(savedWorkoutSets.get(2).getRepetitions()).isEqualTo(10);
 
         assertThat(savedWorkoutSets.get(0).getLineOrder()).isZero();
@@ -196,6 +195,34 @@ class WorkoutServiceTest {
         assertThat(setsCaptor.getValue().get(0).getExercise().getName()).isEqualTo("Bench Press");
         assertThat(setsCaptor.getValue().get(0).getStatus()).isEqualTo(WorkoutSetStatus.DONE);
         verify(workoutRepository, never()).findFirstByUser_IdAndWorkoutDateLessThanOrderByWorkoutDateDesc(any(), any());
+    }
+
+    /**
+     * Null weight and null reps from the UI are stored as null (incomplete row), not coerced to zero.
+     */
+    @Test
+    void createWorkout_persistsNullWeightAndNullReps() {
+        LocalDate today = LocalDate.now();
+
+        WorkoutSubmitRequestDto request = new WorkoutSubmitRequestDto(List.of(
+                new WorkoutSubmitRequestDto.WorkoutExerciseDto("back", "Pull-ups", null, null, null, WorkoutSetStatus.PLANNED)
+        ));
+
+        when(workoutFactory.createWorkout()).thenReturn(new Workout());
+        when(workoutRepository.findByWorkoutDateAndUser_Id(today, USER_ID)).thenReturn(Optional.empty());
+        when(workoutRepository.save(any(Workout.class))).thenAnswer(invocation -> {
+            Workout w = invocation.getArgument(0);
+            w.setId(1L);
+            return w;
+        });
+
+        workoutService.createWorkout(USER_ID, request);
+
+        verify(workoutSetRepository).saveAll(setsCaptor.capture());
+        WorkoutSet row = setsCaptor.getValue().get(0);
+        assertThat(row.getWeight()).isNull();
+        assertThat(row.getRepetitions()).isNull();
+        assertThat(row.getStatus()).isEqualTo(WorkoutSetStatus.PLANNED);
     }
 
     /**

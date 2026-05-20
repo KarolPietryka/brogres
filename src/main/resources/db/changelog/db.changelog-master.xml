@@ -20,5 +20,7 @@ http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
     <include file="db/changelog/changes/012-update-catalog-exercises.xml"/>
     <include file="db/changelog/changes/013-workout-2026-02-15-kapiet-shoulders-legs.xml"/>
     <include file="db/changelog/changes/014-workout-set-weight-not-null.xml"/>
+    <include file="db/changelog/changes/015-workout-set-nullable-weight-reps.xml"/>
+    <include file="db/changelog/changes/016-workout-2026-05-19-demo-chest-partial.xml"/>
 
 </databaseChangeLog>

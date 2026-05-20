@@ -26,7 +26,7 @@ public record WorkoutSubmitRequestDto(
             @NotBlank String name,
             Long exerciseId,
             BigDecimal weight,
-            @NotNull @Min(1) Integer reps,
+            Integer reps,
             WorkoutSetStatus status
     ) {
     }

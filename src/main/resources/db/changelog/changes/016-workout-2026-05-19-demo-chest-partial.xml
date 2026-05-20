@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                                http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- Dev: session 2026-05-19 for demo — partial rows (weight-only and fully empty sets). -->
+    <changeSet id="016-dev-workout-2026-05-19-demo" author="brogres" context="dev">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="1">
+                SELECT COUNT(*) FROM app_user WHERE LOWER(nick) = 'demo'
+            </sqlCheck>
+        </preConditions>
+        <sql dbms="h2,postgresql" splitStatements="true" stripComments="true" endDelimiter=";">
+            INSERT INTO workout (workout_date, created_by, modified_by, created_on, modified_on, user_id)
+            SELECT DATE '2026-05-19', NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, u.id
+            FROM app_user u
+            WHERE LOWER(u.nick) = 'demo'
+              AND NOT EXISTS (
+                SELECT 1 FROM workout w2
+                WHERE w2.user_id = u.id AND w2.workout_date = DATE '2026-05-19'
+              );
+
+            INSERT INTO workout_set (exercise_id, repetitions, body_part, weight, line_order, workout_id, status)
+            SELECT
+                (SELECT e.id FROM exercise e
+                 WHERE e.user_id IS NULL AND e.body_part = 'chest' AND e.name = 'Butterfly' LIMIT 1),
+                NULL, 'chest', 65.0, 0, w.id, 'PLANNED'
+            FROM workout w
+            INNER JOIN app_user u ON u.id = w.user_id AND LOWER(u.nick) = 'demo'
+            WHERE w.workout_date = DATE '2026-05-19'
+              AND NOT EXISTS (SELECT 1 FROM workout_set s WHERE s.workout_id = w.id AND s.line_order = 0);
+
+            INSERT INTO workout_set (exercise_id, repetitions, body_part, weight, line_order, workout_id, status)
+            SELECT
+                (SELECT e.id FROM exercise e
+                 WHERE e.user_id IS NULL AND e.body_part = 'chest' AND e.name = 'Bench Press' LIMIT 1),
+                NULL, 'chest', NULL, 1, w.id, 'PLANNED'
+            FROM workout w
+            INNER JOIN app_user u ON u.id = w.user_id AND LOWER(u.nick) = 'demo'
+            WHERE w.workout_date = DATE '2026-05-19'
+              AND NOT EXISTS (SELECT 1 FROM workout_set s WHERE s.workout_id = w.id AND s.line_order = 1);
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

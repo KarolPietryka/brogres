@@ -101,8 +101,8 @@ public class WorkoutService {
             workoutSet.setWorkout(workout);
             workoutSet.setBodyPart(exerciseDto.bodyPartName());
             workoutSet.setExercise(resolveExerciseForRow(userId, exerciseDto));
-            // DB requires non-null weight; treat missing payload as zero (bodyweight-style logging).
-            workoutSet.setWeight(exerciseDto.weight() != null ? exerciseDto.weight() : BigDecimal.ZERO);
+            // Persist null weight/reps as sent — incomplete rows until the user fills them in on the UI.
+            workoutSet.setWeight(exerciseDto.weight());
             workoutSet.setRepetitions(exerciseDto.reps());
             workoutSet.setLineOrder(lineOrder++);
             // Null status is treated as DONE for legacy clients (pre–progress-bar).

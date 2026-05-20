@@ -29,7 +29,7 @@ public final class WorkoutResponseDtos {
             Long exerciseId,
             int orderId,
             BigDecimal weight,
-            int reps,
+            Integer reps,
             WorkoutSetStatus status) {
     }
 
